@@ -18,9 +18,11 @@ from backend.services.ingestion import ingest_document
 from backend.services.storage import FileStorage
 from tests.fakes import FakeEmbedder, FakeLLM
 
-TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "postgresql+psycopg://noesis:noesis@localhost:5432/noesis_test")
+TEST_DATABASE_URL = os.environ.get(
+    "TEST_DATABASE_URL", "postgresql+psycopg://noesis:noesis@localhost:5432/noesis_test"
+)
 TABLES = (
-    "message_sources, messages, conversation_documents, conversations, "
+    "quiz_attempts, quiz_questions, quizzes, message_sources, messages, conversation_documents, conversations, "
     "document_chunks, document_pages, documents, users"
 )
 
@@ -32,7 +34,9 @@ def engine():
         with eng.connect():
             pass
     except Exception:
-        pytest.skip(f"Postgres not reachable at TEST_DATABASE_URL ({TEST_DATABASE_URL}); run `docker compose up -d db`")
+        pytest.skip(
+            f"Postgres not reachable at TEST_DATABASE_URL ({TEST_DATABASE_URL}); run `docker compose up -d db`"
+        )
     with eng.begin() as conn:
         conn.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public"))
     cfg = Config(os.path.join(os.path.dirname(__file__), "..", "alembic.ini"))

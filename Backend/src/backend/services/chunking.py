@@ -70,7 +70,9 @@ def _split_long(text: str, size: int, overlap: int) -> list[str]:
     return [p for p in pieces if p]
 
 
-def chunk_page(page_number: int, markdown: str, *, size: int, overlap: int) -> list[TextChunk]:
+def chunk_page(
+    page_number: int, markdown: str, *, size: int, overlap: int
+) -> list[TextChunk]:
     chunks: list[TextChunk] = []
     buffer = ""
 
@@ -100,7 +102,9 @@ def chunk_page(page_number: int, markdown: str, *, size: int, overlap: int) -> l
     return chunks
 
 
-def chunk_pages(pages: list[tuple[int, str]], *, size: int, overlap: int) -> list[TextChunk]:
+def chunk_pages(
+    pages: list[tuple[int, str]], *, size: int, overlap: int
+) -> list[TextChunk]:
     out: list[TextChunk] = []
     for page_number, markdown in pages:
         out.extend(chunk_page(page_number, markdown, size=size, overlap=overlap))

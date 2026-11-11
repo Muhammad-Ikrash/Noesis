@@ -7,10 +7,24 @@ from sqlalchemy.orm import Session
 from backend.core.config import Settings
 from backend.database.base import utcnow
 from backend.models import Conversation, Message, MessageSource
-from backend.models.enums import DocumentStatus, LearningMode, MessageRole, RetrievalScope
+from backend.models.enums import (
+    DocumentStatus,
+    LearningMode,
+    MessageRole,
+    RetrievalScope,
+)
 from backend.rag.interfaces import EmbeddingProvider, LLMProvider
-from backend.rag.pipeline import NormalizedAnswer, build_messages, no_sources_answer, normalize
-from backend.services.conversation_service import DEFAULT_TITLE, history_as_chat, recent_history
+from backend.rag.pipeline import (
+    NormalizedAnswer,
+    build_messages,
+    no_sources_answer,
+    normalize,
+)
+from backend.services.conversation_service import (
+    DEFAULT_TITLE,
+    history_as_chat,
+    recent_history,
+)
 from backend.services.retrieval import RetrievedChunk, build_retrieval_query, retrieve
 
 
@@ -41,7 +55,9 @@ def ask(
 
     history = recent_history(db, conversation.id, settings.history_max_messages)
     previous_questions = (
-        [m.content for m in history if m.role is MessageRole.USER][-settings.query_history_turns :]
+        [m.content for m in history if m.role is MessageRole.USER][
+            -settings.query_history_turns :
+        ]
         if settings.query_history_turns
         else []
     )
@@ -66,7 +82,10 @@ def ask(
     if not chunks and mode is LearningMode.BASIC:
         answer = no_sources_answer()
     else:
-        result = llm.complete(build_messages(mode, history_as_chat(history), question, chunks), json_mode=True)
+        result = llm.complete(
+            build_messages(mode, history_as_chat(history), question, chunks),
+            json_mode=True,
+        )
         answer = normalize(result.text, mode, chunks)
 
     now = utcnow()

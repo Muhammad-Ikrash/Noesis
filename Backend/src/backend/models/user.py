@@ -13,6 +13,10 @@ class User(UUIDPk, Timestamps, Base):
     password_hash: Mapped[str | None] = mapped_column(String(255))
     # Default for new conversations: search only attached PDFs or the whole library.
     default_retrieval_scope: Mapped[RetrievalScope] = mapped_column(
-        Enum(RetrievalScope, name="retrieval_scope", values_callable=lambda e: [m.value for m in e]),
+        Enum(
+            RetrievalScope,
+            name="retrieval_scope",
+            values_callable=lambda e: [m.value for m in e],
+        ),
         default=RetrievalScope.SESSION,
     )

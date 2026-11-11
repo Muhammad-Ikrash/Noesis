@@ -18,6 +18,7 @@ dependencies = [
     "pymupdf>=2.1",
     "python-multipart>=0.0.33",
     "sentence-transformers>=5.0",
+    "torch>=2.6",
     "sqlalchemy>=2.1.8",
     "uvicorn[standard]>=0.30",
 ]
@@ -35,3 +36,12 @@ dev = [
     "pytest>=9.2.0",
     "ruff>=0.17.4",
 ]
+
+# CUDA 12.6 PyTorch build: works with NVIDIA driver >= 525 (the default PyPI wheel needs >= 580).
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu126" }]
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true

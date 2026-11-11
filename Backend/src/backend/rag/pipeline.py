@@ -17,7 +17,9 @@ NO_SOURCES_BASIC = (
     "I couldn't find anything about this in the selected PDFs, so I can't answer it in basic mode. "
     "Would you like to upload or attach a PDF that covers this topic, or switch the search to your whole library?"
 )
-INVALID_RESPONSE = "The assistant returned an invalid response. Please try asking again."
+INVALID_RESPONSE = (
+    "The assistant returned an invalid response. Please try asking again."
+)
 
 
 @dataclass
@@ -60,7 +62,9 @@ def _str(value: object) -> str | None:
     return value.strip() if isinstance(value, str) and value.strip() else None
 
 
-def normalize(raw: str, mode: LearningMode, chunks: list[RetrievedChunk]) -> NormalizedAnswer:
+def normalize(
+    raw: str, mode: LearningMode, chunks: list[RetrievedChunk]
+) -> NormalizedAnswer:
     """Validate the model's JSON. Citations pointing outside the retrieved context are dropped."""
     try:
         data = json.loads(raw)
@@ -77,15 +81,22 @@ def normalize(raw: str, mode: LearningMode, chunks: list[RetrievedChunk]) -> Nor
         status = AnswerStatus.ANSWERED
 
     answer = _str(data.get("answer")) or ""
-    supplementary = _str(data.get("supplementary")) if mode is LearningMode.EXTENSIVE else None
+    supplementary = (
+        _str(data.get("supplementary")) if mode is LearningMode.EXTENSIVE else None
+    )
     clarification = _str(data.get("clarification_question"))
 
     by_id = {source_id(i): c for i, c in enumerate(chunks)}
     quotes: dict[str, str | None] = {}
-    raw_citations = data.get("citations") if isinstance(data.get("citations"), list) else []
+    raw_citations = (
+        data.get("citations") if isinstance(data.get("citations"), list) else []
+    )
     for item in raw_citations:
         if isinstance(item, dict) and item.get("source") in by_id:
-            quotes.setdefault(item["source"], (_str(item.get("quote")) or "")[:MAX_QUOTE_CHARS] or None)
+            quotes.setdefault(
+                item["source"],
+                (_str(item.get("quote")) or "")[:MAX_QUOTE_CHARS] or None,
+            )
     for sid in _MARKER.findall(answer):
         if sid in by_id:
             quotes.setdefault(sid, None)
@@ -94,7 +105,10 @@ def normalize(raw: str, mode: LearningMode, chunks: list[RetrievedChunk]) -> Nor
     order = [sid for sid in dict.fromkeys(_MARKER.findall(answer)) if sid in quotes]
     order += [sid for sid in quotes if sid not in order]
     numbering = {sid: n + 1 for n, sid in enumerate(order)}
-    answer = _MARKER.sub(lambda m: f"[{numbering[m.group(1)]}]" if m.group(1) in numbering else "", answer)
+    answer = _MARKER.sub(
+        lambda m: f"[{numbering[m.group(1)]}]" if m.group(1) in numbering else "",
+        answer,
+    )
     citations = [Citation(by_id[sid], quotes[sid]) for sid in order]
 
     if status is AnswerStatus.NEEDS_CLARIFICATION and not clarification:

@@ -2,7 +2,16 @@ import uuid
 from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DateTime, Enum, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database.base import Base, UUIDPk, utcnow
@@ -25,17 +34,23 @@ class DocumentChunk(UUIDPk, Base):
         ),
     )
 
-    document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"), index=True)
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), index=True
+    )
     chunk_index: Mapped[int] = mapped_column(Integer)
     # Chunks never cross page boundaries, so one page number is exact.
     page_number: Mapped[int] = mapped_column(Integer)
     kind: Mapped[ChunkKind] = mapped_column(
-        Enum(ChunkKind, name="chunk_kind", values_callable=lambda e: [m.value for m in e]),
+        Enum(
+            ChunkKind, name="chunk_kind", values_callable=lambda e: [m.value for m in e]
+        ),
         default=ChunkKind.TEXT,
     )
     text: Mapped[str] = mapped_column(Text)
     embedding: Mapped[list[float]] = mapped_column(Vector(EMBEDDING_DIMENSION))
     embedding_model: Mapped[str] = mapped_column(String(255))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
 
     document: Mapped[Document] = relationship()

@@ -1,6 +1,10 @@
 import pytest
 
-from backend.services.pdf_extraction import PDFExtractionError, extract_pdf, looks_like_pdf
+from backend.services.pdf_extraction import (
+    PDFExtractionError,
+    extract_pdf,
+    looks_like_pdf,
+)
 from tests.pdfs import make_pdf
 
 
@@ -11,7 +15,10 @@ def _write(tmp_path, data: bytes):
 
 
 def test_text_pdf_extracts_with_one_based_pages(tmp_path):
-    path = _write(tmp_path, make_pdf(["Photosynthesis uses chlorophyll.", "Mitochondria make ATP."]))
+    path = _write(
+        tmp_path,
+        make_pdf(["Photosynthesis uses chlorophyll.", "Mitochondria make ATP."]),
+    )
     doc = extract_pdf(path, min_page_chars=10)
     assert [p.page_number for p in doc.pages] == [1, 2]
     assert "chlorophyll" in doc.pages[0].markdown.lower()
@@ -37,13 +44,17 @@ def test_ocr_provider_hook_fills_flagged_pages(tmp_path):
         def extract_page_text(self, page):
             return "recognised text from the image"
 
-    doc = extract_pdf(_write(tmp_path, make_pdf([None])), min_page_chars=10, ocr=StubOCR())
+    doc = extract_pdf(
+        _write(tmp_path, make_pdf([None])), min_page_chars=10, ocr=StubOCR()
+    )
     assert doc.pages[0].ocr_applied and not doc.pages[0].needs_ocr
 
 
 def test_corrupt_pdf_raises(tmp_path):
     with pytest.raises(PDFExtractionError):
-        extract_pdf(_write(tmp_path, b"%PDF-1.7 garbage that is not a pdf"), min_page_chars=10)
+        extract_pdf(
+            _write(tmp_path, b"%PDF-1.7 garbage that is not a pdf"), min_page_chars=10
+        )
 
 
 def test_magic_bytes_check():

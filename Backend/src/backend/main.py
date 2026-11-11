@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from backend.api.dependencies import get_ingestor, get_storage
-from backend.api.routes import chat, conversations, documents
+from backend.api.routes import chat, conversations, documents, quizzes
 from backend.api.routes import settings as settings_routes
 from backend.core.config import get_settings
 from backend.core.logging import configure_logging
@@ -35,13 +35,19 @@ async def lifespan(app: FastAPI):
         import threading
 
         ingest = get_ingestor(settings)
-        threading.Thread(target=lambda: [ingest(i) for i in pending], daemon=True).start()
+        threading.Thread(
+            target=lambda: [ingest(i) for i in pending], daemon=True
+        ).start()
     yield
 
 
 def create_app(*, run_lifespan: bool = True) -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title=f"{settings.app_name} API", version="0.1.0", lifespan=lifespan if run_lifespan else None)
+    app = FastAPI(
+        title=f"{settings.app_name} API",
+        version="0.1.0",
+        lifespan=lifespan if run_lifespan else None,
+    )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -52,13 +58,16 @@ def create_app(*, run_lifespan: bool = True) -> FastAPI:
     @app.exception_handler(Exception)
     async def unhandled(request: Request, exc: Exception) -> JSONResponse:
         logger.exception("Unhandled error on %s %s", request.method, request.url.path)
-        return JSONResponse({"detail": "Internal server error."}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JSONResponse(
+            {"detail": "Internal server error."},
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
     @app.get("/api/v1/health", tags=["health"])
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    for module in (documents, conversations, chat, settings_routes):
+    for module in (documents, conversations, chat, quizzes, settings_routes):
         app.include_router(module.router, prefix="/api/v1")
     return app
 

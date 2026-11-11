@@ -55,7 +55,9 @@ def ingest_document(
             )
             if not isinstance(exc, (IngestionError, PDFExtractionError)):
                 logger.exception("Ingestion failed for document %s", document_id)
-            db.execute(delete(DocumentChunk).where(DocumentChunk.document_id == document_id))
+            db.execute(
+                delete(DocumentChunk).where(DocumentChunk.document_id == document_id)
+            )
             db.execute(
                 update(Document)
                 .where(Document.id == document_id)
@@ -75,7 +77,11 @@ def _ingest(
     if embedder.dimension != settings.embedding_dimension:
         raise IngestionError("Embedding dimension does not match configuration.")
 
-    extracted = extract_pdf(str(storage.path_for(doc.storage_key)), min_page_chars=settings.min_page_chars, ocr=ocr)
+    extracted = extract_pdf(
+        str(storage.path_for(doc.storage_key)),
+        min_page_chars=settings.min_page_chars,
+        ocr=ocr,
+    )
 
     # Clear leftovers from an earlier failed attempt before writing.
     db.execute(delete(DocumentChunk).where(DocumentChunk.document_id == doc.id))
@@ -88,7 +94,9 @@ def _ingest(
             image_count=p.image_count,
             table_count=p.table_count,
             needs_ocr=p.needs_ocr,
-            extraction_method=PageExtraction.OCR if p.ocr_applied else PageExtraction.TEXT,
+            extraction_method=PageExtraction.OCR
+            if p.ocr_applied
+            else PageExtraction.TEXT,
         )
         for p in extracted.pages
     )
@@ -110,7 +118,9 @@ def _ingest(
         part = chunks[start : start + batch]
         vectors = embedder.embed_documents([c.text for c in part])
         if len(vectors) != len(part):
-            raise IngestionError("The embedding provider returned the wrong number of vectors.")
+            raise IngestionError(
+                "The embedding provider returned the wrong number of vectors."
+            )
         for offset, (chunk, vector) in enumerate(zip(part, vectors, strict=True)):
             if len(vector) != settings.embedding_dimension:
                 raise IngestionError(
@@ -131,13 +141,22 @@ def _ingest(
     doc.embedding_model = embedder.model
     doc.status = DocumentStatus.COMPLETED
     db.commit()
-    logger.info("Ingested document %s: %d pages, %d chunks", doc.id, extracted.page_count, len(chunks))
+    logger.info(
+        "Ingested document %s: %d pages, %d chunks",
+        doc.id,
+        extracted.page_count,
+        len(chunks),
+    )
 
 
 def pending_document_ids(db: Session) -> list[uuid.UUID]:
     """Documents to (re)ingest at startup, including ones interrupted mid-processing."""
     db.execute(
-        update(Document).where(Document.status == DocumentStatus.PROCESSING).values(status=DocumentStatus.PENDING)
+        update(Document)
+        .where(Document.status == DocumentStatus.PROCESSING)
+        .values(status=DocumentStatus.PENDING)
     )
     db.commit()
-    return list(db.scalars(select(Document.id).where(Document.status == DocumentStatus.PENDING)))
+    return list(
+        db.scalars(select(Document.id).where(Document.status == DocumentStatus.PENDING))
+    )

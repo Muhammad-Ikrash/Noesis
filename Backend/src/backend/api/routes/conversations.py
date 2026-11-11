@@ -17,7 +17,9 @@ from backend.services.conversation_service import NotFoundError
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
 
-def owned_conversation(db: DbSession, user: CurrentUser, conversation_id: uuid.UUID) -> Conversation:
+def owned_conversation(
+    db: DbSession, user: CurrentUser, conversation_id: uuid.UUID
+) -> Conversation:
     try:
         return conversation_service.get_conversation(db, user.id, conversation_id)
     except NotFoundError as exc:
@@ -26,12 +28,17 @@ def owned_conversation(db: DbSession, user: CurrentUser, conversation_id: uuid.U
 
 def _detail(db: DbSession, conv: Conversation) -> ConversationDetail:
     out = ConversationOut.model_validate(conv)
-    messages = [MessageOut.model_validate(m) for m in conversation_service.list_messages(db, conv.id)]
+    messages = [
+        MessageOut.model_validate(m)
+        for m in conversation_service.list_messages(db, conv.id)
+    ]
     return ConversationDetail(**out.model_dump(), messages=messages)
 
 
 @router.post("", response_model=ConversationOut, status_code=status.HTTP_201_CREATED)
-def create_conversation(body: ConversationCreate, db: DbSession, user: CurrentUser) -> ConversationOut:
+def create_conversation(
+    body: ConversationCreate, db: DbSession, user: CurrentUser
+) -> ConversationOut:
     try:
         conv = conversation_service.create_conversation(
             db,
@@ -48,11 +55,16 @@ def create_conversation(body: ConversationCreate, db: DbSession, user: CurrentUs
 
 @router.get("", response_model=list[ConversationOut])
 def list_conversations(db: DbSession, user: CurrentUser) -> list[ConversationOut]:
-    return [ConversationOut.model_validate(c) for c in conversation_service.list_conversations(db, user.id)]
+    return [
+        ConversationOut.model_validate(c)
+        for c in conversation_service.list_conversations(db, user.id)
+    ]
 
 
 @router.get("/{conversation_id}", response_model=ConversationDetail)
-def get_conversation(conversation_id: uuid.UUID, db: DbSession, user: CurrentUser) -> ConversationDetail:
+def get_conversation(
+    conversation_id: uuid.UUID, db: DbSession, user: CurrentUser
+) -> ConversationDetail:
     return _detail(db, owned_conversation(db, user, conversation_id))
 
 
@@ -65,12 +77,18 @@ def update_conversation(
 ) -> ConversationOut:
     conv = owned_conversation(db, user, conversation_id)
     try:
-        conv = conversation_service.update_conversation(db, conv, **body.model_dump(exclude_unset=True))
+        conv = conversation_service.update_conversation(
+            db, conv, **body.model_dump(exclude_unset=True)
+        )
     except NotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
     return ConversationOut.model_validate(conv)
 
 
 @router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_conversation(conversation_id: uuid.UUID, db: DbSession, user: CurrentUser) -> None:
-    conversation_service.delete_conversation(db, owned_conversation(db, user, conversation_id))
+def delete_conversation(
+    conversation_id: uuid.UUID, db: DbSession, user: CurrentUser
+) -> None:
+    conversation_service.delete_conversation(
+        db, owned_conversation(db, user, conversation_id)
+    )

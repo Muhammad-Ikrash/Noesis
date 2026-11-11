@@ -22,7 +22,9 @@ def _vector(text: str, dim: int) -> list[float]:
 class FakeEmbedder:
     """Bag-of-words hashing: texts sharing words are close, so retrieval is meaningful."""
 
-    def __init__(self, dimension: int = DIM, output_dimension: int | None = None) -> None:
+    def __init__(
+        self, dimension: int = DIM, output_dimension: int | None = None
+    ) -> None:
         self.model = "fake-embedder"
         self.dimension = dimension
         self._out = output_dimension or dimension
@@ -47,7 +49,9 @@ class FakeLLM:
     def queue(self, **payload) -> None:
         self.responses.append(json.dumps(payload))
 
-    def complete(self, messages: list[ChatMessage], *, json_mode: bool = False) -> LLMResult:
+    def complete(
+        self, messages: list[ChatMessage], *, json_mode: bool = False
+    ) -> LLMResult:
         self.calls.append(messages)
         if self.responses:
             return LLMResult(self.responses.pop(0), self.model)

@@ -49,13 +49,17 @@ def retrieve(
 
     vector = embedder.embed_query(query)
     if len(vector) != embedder.dimension:
-        raise RetrievalError(f"Query embedding has dimension {len(vector)}, expected {embedder.dimension}.")
+        raise RetrievalError(
+            f"Query embedding has dimension {len(vector)}, expected {embedder.dimension}."
+        )
 
     distance = DocumentChunk.embedding.cosine_distance(vector).label("distance")
     stmt = (
         select(DocumentChunk, Document.filename, distance)
         .join(Document, Document.id == DocumentChunk.document_id)
-        .where(Document.owner_id == owner_id, Document.status == DocumentStatus.COMPLETED)
+        .where(
+            Document.owner_id == owner_id, Document.status == DocumentStatus.COMPLETED
+        )
         .order_by(distance)
         .limit(top_k)
     )

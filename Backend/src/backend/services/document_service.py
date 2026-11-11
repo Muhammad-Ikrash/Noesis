@@ -49,12 +49,16 @@ def upload_document(
     if not data:
         raise UploadError("The uploaded file is empty.")
     if len(data) > max_bytes:
-        raise UploadError(f"The file exceeds the {max_bytes // (1024 * 1024)} MB limit.", 413)
+        raise UploadError(
+            f"The file exceeds the {max_bytes // (1024 * 1024)} MB limit.", 413
+        )
     if not looks_like_pdf(data):
         raise UploadError("The file content is not a PDF.", 415)
 
     digest = hashlib.sha256(data).hexdigest()
-    existing = db.scalar(select(Document).where(Document.owner_id == owner_id, Document.sha256 == digest))
+    existing = db.scalar(
+        select(Document).where(Document.owner_id == owner_id, Document.sha256 == digest)
+    )
     if existing is not None:
         if existing.status in (DocumentStatus.FAILED, DocumentStatus.MISSING):
             storage.save(existing.storage_key, data)
@@ -87,17 +91,35 @@ def upload_document(
 
 
 def list_documents(db: Session, owner_id: uuid.UUID) -> list[Document]:
-    return list(db.scalars(select(Document).where(Document.owner_id == owner_id).order_by(Document.created_at.desc())))
+    return list(
+        db.scalars(
+            select(Document)
+            .where(Document.owner_id == owner_id)
+            .order_by(Document.created_at.desc())
+        )
+    )
 
 
-def get_document(db: Session, owner_id: uuid.UUID, document_id: uuid.UUID) -> Document | None:
-    return db.scalar(select(Document).where(Document.id == document_id, Document.owner_id == owner_id))
+def get_document(
+    db: Session, owner_id: uuid.UUID, document_id: uuid.UUID
+) -> Document | None:
+    return db.scalar(
+        select(Document).where(
+            Document.id == document_id, Document.owner_id == owner_id
+        )
+    )
 
 
-def get_owned_documents(db: Session, owner_id: uuid.UUID, ids: list[uuid.UUID]) -> list[Document]:
+def get_owned_documents(
+    db: Session, owner_id: uuid.UUID, ids: list[uuid.UUID]
+) -> list[Document]:
     if not ids:
         return []
-    return list(db.scalars(select(Document).where(Document.owner_id == owner_id, Document.id.in_(ids))))
+    return list(
+        db.scalars(
+            select(Document).where(Document.owner_id == owner_id, Document.id.in_(ids))
+        )
+    )
 
 
 def delete_document(db: Session, storage: FileStorage, doc: Document) -> None:
@@ -115,11 +137,19 @@ def mark_missing_files(db: Session, storage: FileStorage) -> int:
     """Startup check: flag documents whose stored PDF is gone. Embeddings are kept."""
     missing = [
         d.id
-        for d in db.scalars(select(Document).where(Document.status != DocumentStatus.MISSING))
+        for d in db.scalars(
+            select(Document).where(Document.status != DocumentStatus.MISSING)
+        )
         if not storage.exists(d.storage_key)
     ]
     if missing:
-        db.execute(update(Document).where(Document.id.in_(missing)).values(status=DocumentStatus.MISSING))
+        db.execute(
+            update(Document)
+            .where(Document.id.in_(missing))
+            .values(status=DocumentStatus.MISSING)
+        )
         db.commit()
-        logger.warning("%d document(s) have no stored file and were marked missing", len(missing))
+        logger.warning(
+            "%d document(s) have no stored file and were marked missing", len(missing)
+        )
     return len(missing)

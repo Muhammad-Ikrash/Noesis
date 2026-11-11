@@ -1,6 +1,11 @@
 from functools import lru_cache
 
-from backend.core.config import EmbeddingProviderName, LLMProviderName, Settings, get_settings
+from backend.core.config import (
+    EmbeddingProviderName,
+    LLMProviderName,
+    Settings,
+    get_settings,
+)
 from backend.models import EMBEDDING_DIMENSION
 from backend.rag.interfaces import EmbeddingProvider, LLMProvider
 
@@ -40,7 +45,9 @@ def build_embedder(settings: Settings) -> EmbeddingProvider:
             device=settings.embedding_device,
             batch_size=settings.embedding_batch_size,
         )
-    raise ConfigurationError(f"Unsupported embedding provider: {settings.embedding_provider}")
+    raise ConfigurationError(
+        f"Unsupported embedding provider: {settings.embedding_provider}"
+    )
 
 
 @lru_cache

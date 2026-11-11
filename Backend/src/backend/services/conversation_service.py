@@ -16,7 +16,9 @@ class NotFoundError(Exception):
     pass
 
 
-def _owned_documents_or_raise(db: Session, owner_id: uuid.UUID, ids: list[uuid.UUID]) -> list[Document]:
+def _owned_documents_or_raise(
+    db: Session, owner_id: uuid.UUID, ids: list[uuid.UUID]
+) -> list[Document]:
     unique = list(dict.fromkeys(ids))
     docs = get_owned_documents(db, owner_id, unique)
     if len(docs) != len(unique):
@@ -57,7 +59,9 @@ def list_conversations(db: Session, owner_id: uuid.UUID) -> list[Conversation]:
     )
 
 
-def get_conversation(db: Session, owner_id: uuid.UUID, conversation_id: uuid.UUID) -> Conversation:
+def get_conversation(
+    db: Session, owner_id: uuid.UUID, conversation_id: uuid.UUID
+) -> Conversation:
     conv = db.scalar(
         select(Conversation)
         .where(Conversation.id == conversation_id, Conversation.owner_id == owner_id)
@@ -105,7 +109,9 @@ def delete_conversation(db: Session, conv: Conversation) -> None:
     db.commit()
 
 
-def recent_history(db: Session, conversation_id: uuid.UUID, limit: int) -> list[Message]:
+def recent_history(
+    db: Session, conversation_id: uuid.UUID, limit: int
+) -> list[Message]:
     if limit <= 0:
         return []
     rows = db.scalars(

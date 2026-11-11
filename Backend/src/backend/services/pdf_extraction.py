@@ -50,10 +50,14 @@ def looks_like_pdf(head: bytes) -> bool:
     return PDF_MAGIC in head[:1024]
 
 
-def extract_pdf(path: str, *, min_page_chars: int, ocr: OCRProvider | None = None) -> ExtractedDocument:
+def extract_pdf(
+    path: str, *, min_page_chars: int, ocr: OCRProvider | None = None
+) -> ExtractedDocument:
     try:
         doc = pymupdf.open(path, filetype="pdf")
-    except Exception as exc:  # PyMuPDF raises several unrelated types for corrupt files.
+    except (
+        Exception
+    ) as exc:  # PyMuPDF raises several unrelated types for corrupt files.
         raise PDFExtractionError("The file could not be opened as a PDF.") from exc
 
     with doc:
@@ -64,7 +68,9 @@ def extract_pdf(path: str, *, min_page_chars: int, ocr: OCRProvider | None = Non
 
         try:
             # use_ocr=False: no OCR runs unless an OCRProvider is configured explicitly.
-            chunks = pymupdf4llm.to_markdown(doc, page_chunks=True, use_ocr=False, show_progress=False)
+            chunks = pymupdf4llm.to_markdown(
+                doc, page_chunks=True, use_ocr=False, show_progress=False
+            )
         except Exception as exc:
             raise PDFExtractionError("Text extraction failed for this PDF.") from exc
 
@@ -89,5 +95,7 @@ def extract_pdf(path: str, *, min_page_chars: int, ocr: OCRProvider | None = Non
                     extracted.needs_ocr = False
             result.pages.append(extracted)
 
-    logger.info("Extracted %d pages (%d need OCR)", result.page_count, len(result.ocr_pages))
+    logger.info(
+        "Extracted %d pages (%d need OCR)", result.page_count, len(result.ocr_pages)
+    )
     return result

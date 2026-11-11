@@ -47,6 +47,7 @@ Tests use deterministic fake LLM/embedding providers: no API key, GPU or model d
 | POST | `/documents` | multipart `file`. 201 + ingestion in background; 200 with `created=false` if the identical PDF already exists. 413 too large, 415 not a PDF. |
 | GET | `/documents` | All of the student's PDFs with `status`: `pending`, `processing`, `completed`, `failed`, `missing`. |
 | GET | `/documents/{id}` | Adds per-page info and `ocr_pages` (pages with no extractable text). |
+| GET | `/documents/{id}/file` | Streams the stored PDF (inline) for the viewer. 410 if the file is missing. |
 | DELETE | `/documents/{id}` | Removes file, chunks/embeddings and chat attachments. Past answers keep their citation filename/page (with `document_id: null`). |
 
 ### Conversations
@@ -85,6 +86,16 @@ Response (abridged):
 
 `[n]` markers in `answer` refer to `sources[].position`. Citations the model invents are discarded; in basic mode an
 answer with no valid citation becomes `insufficient_context`.
+
+### Quizzes
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/quizzes` | `{document_ids[] \| conversation_id, topic?, question_count (1-15)}`. Multiple choice, grounded only in PDF passages; each question keeps filename/page. Response has no answer key. |
+| GET | `/quizzes` | Summaries with `best_score`, `attempt_count`. |
+| GET | `/quizzes/{id}` | Questions (no answers) and past attempts. |
+| POST | `/quizzes/{id}/attempts` | `{answers: [0-3 \| null, ...]}` → score plus answer key, explanations and sources. |
+| GET | `/quizzes/{id}/attempts/{attempt_id}` | Re-open a graded attempt. |
+| DELETE | `/quizzes/{id}` | |
 
 ### Settings
 `GET/PUT /settings` — `{ "default_retrieval_scope": "session" | "library" }`: default slider position for new chats.

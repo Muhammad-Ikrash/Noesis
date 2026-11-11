@@ -1,6 +1,15 @@
 import uuid
 
-from sqlalchemy import BigInteger, Boolean, Enum, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Enum,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database.base import Base, Timestamps, UUIDPk
@@ -13,9 +22,13 @@ def _values(e: type) -> list[str]:
 
 class Document(UUIDPk, Timestamps, Base):
     __tablename__ = "documents"
-    __table_args__ = (UniqueConstraint("owner_id", "sha256", name="uq_documents_owner_sha256"),)
+    __table_args__ = (
+        UniqueConstraint("owner_id", "sha256", name="uq_documents_owner_sha256"),
+    )
 
-    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    owner_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
     filename: Mapped[str] = mapped_column(String(512))
     # Server-generated, relative to STORAGE_DIR. Never exposed through the API.
     storage_key: Mapped[str] = mapped_column(String(128), unique=True)
@@ -45,7 +58,9 @@ class DocumentPage(UUIDPk, Base):
     __tablename__ = "document_pages"
     __table_args__ = (UniqueConstraint("document_id", "page_number"),)
 
-    document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"))
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE")
+    )
     page_number: Mapped[int] = mapped_column(Integer)  # one-based
     char_count: Mapped[int] = mapped_column(Integer)
     image_count: Mapped[int] = mapped_column(Integer, default=0)

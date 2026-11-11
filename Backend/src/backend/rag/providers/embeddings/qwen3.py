@@ -10,7 +10,9 @@ logger = logging.getLogger(__name__)
 class Qwen3EmbeddingProvider:
     """Local Qwen3-Embedding via sentence-transformers. Loaded lazily on first use."""
 
-    def __init__(self, *, model: str, dimension: int, device: str, batch_size: int) -> None:
+    def __init__(
+        self, *, model: str, dimension: int, device: str, batch_size: int
+    ) -> None:
         self.model = model
         self.dimension = dimension
         self._device = device
@@ -29,7 +31,9 @@ class Qwen3EmbeddingProvider:
                     device = "cuda" if torch.cuda.is_available() else "cpu"
                 logger.info("Loading embedding model %s on %s", self.model, device)
                 # fp32: GTX 16-series cards have no tensor cores and fp16 can produce NaNs.
-                self._st = SentenceTransformer(self.model, device=device, truncate_dim=self.dimension)
+                self._st = SentenceTransformer(
+                    self.model, device=device, truncate_dim=self.dimension
+                )
             return self._st
 
     def _encode(self, texts: list[str], prompt_name: str | None) -> list[list[float]]:

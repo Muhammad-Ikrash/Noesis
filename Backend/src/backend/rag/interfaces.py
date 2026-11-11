@@ -22,7 +22,9 @@ class LLMResult:
 class LLMProvider(Protocol):
     model: str
 
-    def complete(self, messages: list[ChatMessage], *, json_mode: bool = False) -> LLMResult: ...
+    def complete(
+        self, messages: list[ChatMessage], *, json_mode: bool = False
+    ) -> LLMResult: ...
 
 
 class EmbeddingProvider(Protocol):
