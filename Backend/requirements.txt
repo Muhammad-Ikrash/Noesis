@@ -1,0 +1,34 @@
+langchain
+langchain-core
+langchain-community
+
+
+# FastAPI
+fastapi[standard]
+
+# Database
+sqlalchemy
+psycopg[binary]
+pgvector
+alembic
+
+# Configuration and validation
+pydantic-settings
+email-validator
+python-multipart
+
+# PDF processing
+pymupdf
+pypdf
+
+# AI / LLM
+openai
+
+# Authentication and security
+pyjwt[crypto]
+pwdlib[argon2]
+
+# Development and testing
+pytest
+httpx
+ruff

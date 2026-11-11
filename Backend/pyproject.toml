@@ -1,0 +1,37 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "alembic>=1.20.1",
+    "email-validator>=2.3.0",
+    "fastapi>=0.162.2",
+    "ipykernel>=7.4.0",
+    "openai>=3.46.0",
+    "pgvector>=0.5.1",
+    "psycopg[binary]>=3.3.8",
+    "pwdlib[argon2]>=0.3.1",
+    "pydantic-settings>=2.16.2",
+    "pyjwt[crypto]>=2.15.1",
+    "pymupdf>=2.1",
+    "python-multipart>=0.0.33",
+    "sentence-transformers>=5.0",
+    "sqlalchemy>=2.1.8",
+    "uvicorn[standard]>=0.30",
+]
+
+[project.scripts]
+backend = "backend:main"
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.2.0",
+    "ruff>=0.17.4",
+]
