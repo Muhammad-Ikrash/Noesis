@@ -44,6 +44,7 @@ def build_embedder(settings: Settings) -> EmbeddingProvider:
             dimension=settings.embedding_dimension,
             device=settings.embedding_device,
             batch_size=settings.embedding_batch_size,
+            max_seq_length=settings.embedding_max_seq_length,
         )
     raise ConfigurationError(
         f"Unsupported embedding provider: {settings.embedding_provider}"

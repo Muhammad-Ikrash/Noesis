@@ -39,7 +39,8 @@ class Settings(BaseSettings):
     # Must match the pgvector column created by the migrations.
     embedding_dimension: int = 1024
     embedding_device: str = "auto"
-    embedding_batch_size: int = Field(default=16, gt=0)
+    embedding_batch_size: int = Field(default=4, gt=0)
+    embedding_max_seq_length: int = Field(default=1024, gt=0)
 
     chunk_size: int = Field(default=1800, gt=100)
     chunk_overlap: int = Field(default=200, ge=0)
