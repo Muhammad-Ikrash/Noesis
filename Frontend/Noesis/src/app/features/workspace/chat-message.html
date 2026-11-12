@@ -1,0 +1,66 @@
+@if (isUser()) {
+  <div class="q">
+    <p>{{ message().content }}</p>
+  </div>
+} @else {
+  <article class="a" [class.a--ext]="extensive()">
+    @switch (status()) {
+      @case ('needs_clarification') {
+        <div class="clarify">
+          <p class="eyebrow">Noesis needs a detail</p>
+          <app-rich-text [text]="message().clarification_question || message().content" />
+        </div>
+      }
+      @case ('error') {
+        <div class="alert" role="alert"><div>{{ message().content }}</div></div>
+      }
+      @default {
+        @if (status() === 'insufficient_context') {
+          <p class="flag"><app-icon name="book" [size]="14" /> Not covered by your PDFs</p>
+        }
+        @if (extensive() && message().content) {
+          <p class="eyebrow label">From your PDF</p>
+        }
+        <app-rich-text class="body" [text]="message().content" [citeCount]="message().sources.length" (cite)="cite($event)" />
+
+        @if (message().supplementary) {
+          <aside class="supp" aria-label="Additional explanation, not from your PDF">
+            <p class="eyebrow">Additional explanation · <span>not from your PDF</span></p>
+            <app-rich-text [text]="message().supplementary!" />
+          </aside>
+        }
+
+        @if (status() === 'insufficient_context' && message().mode === 'basic') {
+          <div class="suggest">
+            @if (message().retrieval_scope === 'session') {
+              <button class="btn btn--sm" type="button" (click)="suggest.emit('library')">Search my whole library</button>
+            }
+            <button class="btn btn--sm" type="button" (click)="suggest.emit('attach')">Attach a PDF</button>
+            <button class="btn btn--quiet btn--sm" type="button" (click)="suggest.emit('extensive')">Use Extensive mode</button>
+          </div>
+        }
+      }
+    }
+
+    @if (message().sources.length) {
+      <footer class="sources">
+        <span class="eyebrow">Sources</span>
+        <ul>
+          @for (s of message().sources; track s.position) {
+            <li>
+              @if (s.document_id) {
+                <button class="cite" type="button" (click)="openSource.emit(s)" [title]="s.quote || 'Open page ' + s.page_number">
+                  <span>{{ s.position }}</span> {{ s.filename }} · p.{{ s.page_number }}
+                </button>
+              } @else {
+                <span class="cite cite--gone" title="This PDF was deleted from your library">
+                  <span>{{ s.position }}</span> {{ s.filename }} · p.{{ s.page_number }} · deleted
+                </span>
+              }
+            </li>
+          }
+        </ul>
+      </footer>
+    }
+  </article>
+}

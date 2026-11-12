@@ -1,0 +1,47 @@
+:host { display: flex; flex-direction: column; min-height: 100vh; }
+
+.skip {
+  position: absolute; left: -999px; top: 8px; z-index: 200;
+  padding: 8px 12px; background: var(--ink); color: var(--paper); border-radius: var(--radius);
+  &:focus { left: 8px; }
+}
+
+.topbar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: var(--space-5);
+  height: var(--topbar-h); padding: 0 var(--space-5);
+  background: color-mix(in srgb, var(--paper), transparent 8%);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--rule);
+}
+
+.wordmark {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-read); font-size: 1.35rem; font-weight: 500;
+  text-decoration: none; letter-spacing: -0.01em;
+}
+.wordmark__glyph {
+  display: grid; place-items: center; width: 28px; height: 28px;
+  border: 1.5px solid var(--pen); border-radius: 50%;
+  color: var(--pen); font-style: italic; font-size: 1.05rem; line-height: 1;
+}
+
+nav {
+  display: flex; gap: var(--space-1); margin-right: auto;
+  a {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 10px; border-radius: var(--radius);
+    color: var(--ink-2); text-decoration: none; font-size: var(--text-sm); font-weight: 500;
+    &:hover { color: var(--ink); background: var(--paper-sunk); }
+    &.is-active { color: var(--ink); box-shadow: inset 0 -2px 0 var(--pen); border-radius: 0; }
+  }
+}
+
+main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+@media (max-width: 640px) {
+  .topbar { gap: var(--space-2); padding: 0 var(--space-3); }
+  .wordmark span:last-child { display: none; }
+  nav a span { display: none; }
+  nav a { padding: 8px 12px; }
+}

@@ -1,0 +1,78 @@
+// Noesis design tokens — "the study desk": paper, ink, a red marking pen and a highlighter.
+:root {
+  --font-read: 'Newsreader', 'Iowan Old Style', Georgia, serif;
+  --font-ui: 'Instrument Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-read: 1.0625rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.75rem;
+  --text-2xl: 2.5rem;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 72px;
+
+  --radius-sm: 3px;
+  --radius: 6px;
+  --measure: 68ch;
+  --topbar-h: 56px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  --paper: #f5f0e6;
+  --paper-sunk: #ece5d6;
+  --surface: #fbf8f1;
+  --ink: #1e1a15;
+  --ink-2: #4b443a;
+  --ink-3: #7a7264;
+  --rule: #ddd3c1;
+  --rule-strong: #b8aa91;
+  --pen: #962f22; // the red marking pen: citations, primary actions
+  --pen-soft: #96302214;
+  --on-pen: #fffaf2;
+  --highlight: #f2cf4a73;
+  --ok: #3b6a45;
+  --ok-soft: #3b6a4517;
+  --warn: #9a620e;
+  --warn-soft: #9a620e17;
+  --danger: #a2271c;
+  --danger-soft: #a2271c14;
+  --focus: #2c5b8c;
+  --shadow: 0 1px 0 #0000000a, 0 8px 24px -12px #3a2a1240;
+}
+
+@mixin dark {
+  --paper: #14161b;
+  --paper-sunk: #0f1115;
+  --surface: #1b1e24;
+  --ink: #ebe3d3;
+  --ink-2: #c0b6a4;
+  --ink-3: #8b8374;
+  --rule: #2c3038;
+  --rule-strong: #464b56;
+  --pen: #e58466;
+  --pen-soft: #e5846618;
+  --on-pen: #1a0f0b;
+  --highlight: #e8c44a40;
+  --ok: #82b88c;
+  --ok-soft: #82b88c1c;
+  --warn: #e0ac55;
+  --warn-soft: #e0ac551c;
+  --danger: #ef7d70;
+  --danger-soft: #ef7d701c;
+  --focus: #8db8e8;
+  --shadow: 0 1px 0 #00000040, 0 12px 32px -12px #000000a0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) { @include dark; }
+}
+:root[data-theme='dark'] { @include dark; }

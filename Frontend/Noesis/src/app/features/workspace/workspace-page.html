@@ -1,0 +1,186 @@
+<!-- Session rail -->
+<aside class="rail" [class.is-open]="railOpen()" aria-label="Study sessions">
+  <div class="rail__head">
+    <span class="eyebrow">Sessions</span>
+    <a class="btn btn--sm" routerLink="/study" (click)="railOpen.set(false)"><app-icon name="plus" [size]="14" />New</a>
+  </div>
+  @if (conversations().length === 0) {
+    <p class="rail__empty muted">No sessions yet.</p>
+  }
+  <ul>
+    @for (c of conversations(); track c.id) {
+      <li>
+        <a [routerLink]="['/study', c.id]" [class.is-active]="c.id === conversationId()">
+          <span class="rail__title">{{ c.title }}</span>
+          <span class="mono muted">{{ ago(c.last_message_at ?? c.created_at) }}</span>
+        </a>
+      </li>
+    }
+  </ul>
+</aside>
+@if (railOpen()) { <div class="scrim" (click)="railOpen.set(false)"></div> }
+
+@if (!conversationId()) {
+  <!-- Start a session -->
+  <section class="start">
+    <button class="btn btn--quiet btn--sm rail-toggle" type="button" (click)="railOpen.set(true)">
+      <app-icon name="panel" [size]="16" /> Sessions
+    </button>
+    <div class="start__inner">
+      <p class="eyebrow">New study session</p>
+      <h1>What are we studying?</h1>
+      <p class="lede">Pick the PDFs for this session. You can attach more later, or switch the search to your whole library at any time.</p>
+
+      @if (libraryLoading()) {
+        <div class="start__list">
+          @for (i of [1, 2, 3]; track i) { <div class="skeleton" style="height: 44px"></div> }
+        </div>
+      } @else if (loadError()) {
+        <div class="alert" role="alert"><div>{{ loadError() }}</div></div>
+      } @else if (!library().length) {
+        <div class="empty panel">
+          <app-icon name="book" [size]="28" />
+          <h3>No processed PDFs yet</h3>
+          <p>Upload something to your library first, or start an empty session that searches the whole library.</p>
+          <a class="btn" routerLink="/library">Go to library</a>
+        </div>
+      } @else {
+        <ul class="start__list">
+          @for (d of library(); track d.id) {
+            <li>
+              <label [class.is-on]="startPicked().has(d.id)">
+                <input type="checkbox" [checked]="startPicked().has(d.id)" (change)="toggleStart(d.id)" />
+                <span class="name">{{ d.filename }}</span>
+                <span class="mono muted">{{ d.page_count }} pp</span>
+              </label>
+            </li>
+          }
+        </ul>
+      }
+      <div class="start__actions">
+        <button class="btn btn--primary" type="button" (click)="start()" [disabled]="starting()">
+          @if (starting()) { <span class="spinner"></span> }
+          {{ startPicked().size ? 'Start with ' + startPicked().size + ' PDF' + (startPicked().size > 1 ? 's' : '') : 'Start, searching whole library' }}
+        </button>
+      </div>
+    </div>
+  </section>
+} @else if (loading()) {
+  <section class="state"><span class="spinner"></span><span class="muted">Opening session…</span></section>
+} @else if (loadError()) {
+  <section class="state">
+    <div class="alert" role="alert">
+      <div><strong>Session unavailable.</strong> {{ loadError() }}</div>
+      <button class="btn btn--sm" type="button" (click)="load(conversationId()!)">Retry</button>
+    </div>
+    <a class="btn btn--quiet" routerLink="/study">Start a new session</a>
+  </section>
+} @else if (detail(); as conv) {
+  <section class="desk">
+    <header class="desk__head">
+      <button class="btn btn--quiet btn--icon btn--sm rail-toggle" type="button" (click)="railOpen.set(true)" aria-label="Show sessions">
+        <app-icon name="panel" [size]="16" />
+      </button>
+      @if (editingTitle()) {
+        <input class="input title-input" [value]="conv.title" (blur)="saveTitle($event)" (keydown.enter)="saveTitle($event)"
+               (keydown.escape)="editingTitle.set(false)" aria-label="Session title" maxlength="255" #ti />
+      } @else {
+        <button class="title" type="button" (click)="editingTitle.set(true)" title="Rename">
+          <span>{{ conv.title }}</span><app-icon name="edit" [size]="14" />
+        </button>
+      }
+      <div class="head__actions">
+        <button class="btn btn--sm" type="button" (click)="attachOpen.set(true)">
+          <app-icon name="clip" [size]="14" /><span class="hide-sm">PDFs</span> <span class="mono">{{ conv.documents.length }}</span>
+        </button>
+        <button class="btn btn--sm" type="button" (click)="quizMe()" [disabled]="quizBusy()">
+          @if (quizBusy()) { <span class="spinner"></span> } @else { <app-icon name="quiz" [size]="14" /> }
+          <span class="hide-sm">Quiz me</span>
+        </button>
+        <button class="btn btn--quiet btn--icon btn--sm" type="button" (click)="deleteOpen.set(true)" aria-label="Delete session" title="Delete session">
+          <app-icon name="trash" [size]="15" />
+        </button>
+      </div>
+    </header>
+
+    <div class="tabs" role="tablist" aria-label="Workspace view">
+      <button role="tab" type="button" [attr.aria-selected]="mobileTab() === 'chat'" (click)="mobileTab.set('chat')">Chat</button>
+      <button role="tab" type="button" [attr.aria-selected]="mobileTab() === 'pdf'" (click)="mobileTab.set('pdf')">PDF</button>
+    </div>
+
+    <div class="split">
+      <!-- Viewer -->
+      <div class="viewer" [class.is-hidden-sm]="mobileTab() !== 'pdf'">
+        @if (openDocs().length) {
+          @if (openDocs().length > 1) {
+            <div class="doctabs" role="tablist" aria-label="Open PDFs">
+              @for (d of openDocs(); track d.id) {
+                <button role="tab" type="button" [attr.aria-selected]="d.id === activeDoc()" (click)="selectDoc(d.id)" [title]="d.filename">
+                  {{ d.filename }}
+                </button>
+              }
+            </div>
+          }
+          @if (activeDoc(); as docId) {
+            <app-pdf-viewer [documentId]="docId" [target]="target()" />
+          }
+        } @else {
+          <div class="empty viewer__empty">
+            <app-icon name="file" [size]="28" />
+            <h3>No PDF open</h3>
+            <p>Attach PDFs to this session, or click a citation in an answer to open its page here.</p>
+            <button class="btn btn--sm" type="button" (click)="attachOpen.set(true)">Attach PDFs</button>
+          </div>
+        }
+      </div>
+
+      <!-- Chat -->
+      <div class="chat" [class.is-hidden-sm]="mobileTab() !== 'chat'">
+        <div class="thread" #thread aria-live="polite">
+          @if (!messages().length && !pendingQuestion()) {
+            <div class="empty chat__empty">
+              <p class="eyebrow">Start the conversation</p>
+              <h3>Ask anything about {{ conv.documents.length === 1 ? 'this PDF' : 'your PDFs' }}.</h3>
+              <p>Try “Summarise the main argument”, “Explain the second figure”, or “What's the difference between X and Y?”</p>
+              @if (noDocsForSession()) {
+                <div class="alert alert--warn">
+                  <div>No processed PDFs are attached, and search is set to <em>This chat's PDFs</em>. Attach some, or switch to <em>Whole library</em>.</div>
+                </div>
+              }
+            </div>
+          }
+          @for (m of messages(); track m.id) {
+            <app-chat-message [message]="m" (openSource)="openSource($event)" (suggest)="onSuggest($event)" />
+          }
+          @if (pendingQuestion(); as q) {
+            <div class="q-pending">{{ q }}</div>
+            <div class="thinking" role="status">
+              <span class="spinner"></span>
+              <span>{{ scope() === 'library' ? 'Searching your library…' : 'Reading your PDFs…' }}</span>
+            </div>
+          }
+          @if (sendError(); as err) {
+            <div class="q-pending is-failed">{{ err.question }}</div>
+            <div class="alert" role="alert">
+              <div>{{ err.message }}</div>
+              <button class="btn btn--sm" type="button" (click)="retrySend()">Retry</button>
+              <button class="btn btn--quiet btn--sm" type="button" (click)="editFailed()">Edit</button>
+            </div>
+          }
+        </div>
+        <div class="chat__composer">
+          <app-composer [mode]="mode()" [scope]="scope()" [busy]="!!pendingQuestion()" [disabled]="!!pendingQuestion()"
+                        [(text)]="draft"
+                        [placeholder]="awaitingClarification() ? 'Answer the question above…' : 'Ask about your PDFs…'"
+                        (send)="send($event)" (modeChange)="setMode($event)" (scopeChange)="setScope($event)" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <app-attach-dialog [open]="attachOpen()" [attached]="attachedIds()" [busy]="attachBusy()"
+                     (save)="saveAttached($event)" (closed)="attachOpen.set(false)" />
+  <app-confirm-dialog [open]="deleteOpen()" title="Delete this session?" confirmLabel="Delete" [danger]="true" [busy]="deleting()"
+                      message="The conversation and its answers will be removed. Your PDFs stay in the library."
+                      (confirmed)="deleteConversation()" (cancelled)="deleteOpen.set(false)" />
+}

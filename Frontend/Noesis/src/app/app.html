@@ -1,0 +1,27 @@
+<a class="skip" href="#main">Skip to content</a>
+<header class="topbar">
+  <a routerLink="/library" class="wordmark" aria-label="Noesis home">
+    <span class="wordmark__glyph" aria-hidden="true">ν</span>
+    <span>Noesis</span>
+  </a>
+  <nav aria-label="Primary">
+    <a routerLink="/library" routerLinkActive="is-active">
+      <app-icon name="library" [size]="16" /><span>Library</span>
+    </a>
+    <a routerLink="/study" routerLinkActive="is-active">
+      <app-icon name="book" [size]="16" /><span>Study</span>
+    </a>
+    <a routerLink="/quizzes" routerLinkActive="is-active">
+      <app-icon name="quiz" [size]="16" /><span>Quizzes</span>
+    </a>
+  </nav>
+  <button class="btn btn--quiet btn--icon" type="button" (click)="theme.cycle()"
+          [attr.aria-label]="'Theme: ' + theme.theme() + '. Click to change.'"
+          [title]="'Theme: ' + theme.theme()">
+    <app-icon [name]="themeIcon[theme.theme()]" />
+  </button>
+</header>
+<main id="main">
+  <router-outlet />
+</main>
+<app-toast-host />

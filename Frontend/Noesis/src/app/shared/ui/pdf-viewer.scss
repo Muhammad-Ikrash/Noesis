@@ -1,0 +1,47 @@
+:host { display: flex; flex-direction: column; min-height: 0; height: 100%; background: var(--paper-sunk); }
+
+.bar {
+  display: flex; align-items: center; gap: var(--space-1);
+  height: 44px; padding: 0 var(--space-2); flex: none;
+  border-bottom: 1px solid var(--rule); background: var(--paper);
+  .spacer { flex: 1; }
+}
+.pageno {
+  display: flex; align-items: center; gap: 6px; font-size: var(--text-xs);
+  input {
+    width: 44px; height: 26px; text-align: center; font-size: var(--text-xs);
+    border: 1px solid var(--rule-strong); border-radius: var(--radius-sm); background: var(--surface);
+  }
+}
+
+.scroller {
+  flex: 1; min-height: 0; overflow: auto;
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-4);
+  padding: var(--space-5) var(--space-4);
+  &:focus-visible { outline-offset: -2px; }
+}
+
+.pg {
+  position: relative; flex: none; background: #fff;
+  box-shadow: 0 0 0 1px #00000014, 0 6px 18px -10px #0000004d;
+  transition: box-shadow .3s;
+  ::ng-deep canvas { display: block; }
+  ::ng-deep .textLayer { position: absolute; inset: 0; }
+  ::ng-deep .textLayer .nx-hl {
+    background: var(--highlight); border-radius: 2px;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--highlight), #a67c00 30%);
+  }
+  &.is-flash { box-shadow: 0 0 0 3px var(--pen), 0 6px 18px -10px #0000004d; }
+}
+
+// Dark theme: dim the white page slightly instead of inverting real content.
+:host-context([data-theme='dark']) .pg { filter: brightness(0.88); }
+@media (prefers-color-scheme: dark) {
+  :host-context(html:not([data-theme='light'])) .pg { filter: brightness(0.88); }
+}
+
+.state {
+  display: grid; justify-items: center; gap: var(--space-4); width: min(560px, 100%); padding-top: var(--space-6);
+  p { display: flex; gap: 8px; align-items: center; font-size: var(--text-sm); }
+}
+.sheet { width: 100%; aspect-ratio: 0.77; max-height: 60vh; }

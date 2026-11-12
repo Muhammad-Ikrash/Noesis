@@ -1,0 +1,131 @@
+<div class="page">
+  <section class="intro">
+    <p class="eyebrow">Your library</p>
+    <h1>Everything you're studying, <em>in one place.</em></h1>
+    <p class="lede">
+      Add your PDFs once. Open any of them in a study session, ask questions, and every answer points back
+      to the page it came from.
+    </p>
+  </section>
+
+  <div class="grid">
+    <section class="shelf" aria-labelledby="shelf-h">
+      <div class="shelf__head">
+        <h2 id="shelf-h">Documents <span class="count mono">{{ docs().length }}</span></h2>
+        @if (readyCount() > 0) {
+          <label class="check-all">
+            <input type="checkbox" [checked]="allSelected()" (change)="toggleAll()" />
+            Select all ready
+          </label>
+        }
+      </div>
+
+      @if (loading()) {
+        <div class="rows" aria-busy="true" aria-label="Loading documents">
+          @for (i of [1, 2, 3]; track i) {
+            <div class="row row--skeleton">
+              <div class="skeleton" style="width: 18px; height: 18px"></div>
+              <div class="skeleton" style="height: 14px; width: 55%"></div>
+              <div class="skeleton" style="height: 14px; width: 70px; margin-left: auto"></div>
+            </div>
+          }
+        </div>
+      } @else if (error()) {
+        <div class="alert" role="alert">
+          <div><strong>Library unavailable.</strong> {{ error() }}</div>
+          <button class="btn btn--sm" type="button" (click)="load()"><app-icon name="refresh" [size]="14" />Retry</button>
+        </div>
+      } @else if (docs().length === 0) {
+        <div class="empty">
+          <app-icon name="book" [size]="32" />
+          <h3>Your shelf is empty</h3>
+          <p>Upload a PDF to start. Lecture notes, a textbook chapter, or past papers all work.</p>
+        </div>
+      } @else {
+        <ul class="rows">
+          @for (doc of docs(); track doc.id) {
+            <li class="row" [class.is-selected]="selected().has(doc.id)">
+              <input type="checkbox" [checked]="selected().has(doc.id)" (change)="toggle(doc.id)"
+                     [disabled]="doc.status !== 'completed'" [attr.aria-label]="'Select ' + doc.filename" />
+              <div class="row__main">
+                <span class="row__name" [title]="doc.filename">{{ doc.filename }}</span>
+                <span class="row__meta mono">
+                  @if (doc.page_count) { {{ doc.page_count }} pp · }
+                  {{ size(doc.size_bytes) }} · {{ ago(doc.created_at) }}
+                </span>
+                @if (doc.status === 'processing') {
+                  <span class="row__progress" role="progressbar" aria-label="Processing progress"
+                        [attr.aria-valuenow]="percent(doc)" aria-valuemin="0" aria-valuemax="100">
+                    <span [class.is-indeterminate]="percent(doc) === null" [style.width.%]="percent(doc) ?? 30"></span>
+                  </span>
+                }
+                @if (doc.error_message) { <span class="row__err">{{ doc.error_message }}</span> }
+              </div>
+              <span class="pill" [class]="'pill ' + pillClass(doc.status)">{{ label[doc.status] }}@if (doc.status === 'processing') { {{ progressLabel(doc) }} }</span>
+              <div class="row__actions">
+                @if (doc.status === 'completed') {
+                  <a class="btn btn--quiet btn--sm" [routerLink]="['/read', doc.id]">Read</a>
+                  <button class="btn btn--sm" type="button" (click)="study([doc.id])" [disabled]="starting()">Study</button>
+                }
+                <button class="btn btn--quiet btn--icon btn--sm" type="button" (click)="toDelete.set(doc)"
+                        [attr.aria-label]="'Delete ' + doc.filename" title="Delete">
+                  <app-icon name="trash" [size]="15" />
+                </button>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+
+      @if (selectedReady().length) {
+        <div class="selbar" role="region" aria-label="Selection actions">
+          <span><strong>{{ selectedReady().length }}</strong> selected</span>
+          <button class="btn btn--quiet btn--sm" type="button" (click)="clearSelection()">Clear</button>
+          <span class="spacer"></span>
+          <button class="btn btn--sm" type="button" (click)="quiz(selectedIds())">
+            <app-icon name="quiz" [size]="14" />Quiz me
+          </button>
+          <button class="btn btn--primary btn--sm" type="button" (click)="study(selectedIds())" [disabled]="starting()">
+            @if (starting()) { <span class="spinner"></span> } @else { <app-icon name="book" [size]="14" /> }
+            Study together
+          </button>
+        </div>
+      }
+    </section>
+
+    <aside class="side">
+      <app-upload-dropzone (uploaded)="onUploaded($event)" />
+
+      <section class="recent" aria-labelledby="recent-h">
+        <div class="recent__head">
+          <h3 id="recent-h">Continue studying</h3>
+          <a routerLink="/study" class="btn btn--quiet btn--sm">New session</a>
+        </div>
+        @if (conversations().length === 0) {
+          <p class="muted small">No sessions yet. Pick documents and press <em>Study</em>.</p>
+        } @else {
+          <ul>
+            @for (c of conversations(); track c.id) {
+              <li>
+                <a [routerLink]="['/study', c.id]">
+                  <span class="recent__title">{{ c.title }}</span>
+                  <span class="mono muted">{{ c.documents.length }} pdf · {{ ago(c.last_message_at ?? c.created_at) }}</span>
+                </a>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+    </aside>
+  </div>
+</div>
+
+<app-confirm-dialog
+  [open]="!!toDelete()"
+  title="Delete this PDF?"
+  [message]="'“' + (toDelete()?.filename ?? '') + '” and its search index will be removed from your library and from every chat it is attached to. Earlier answers keep their filename and page citations.'"
+  confirmLabel="Delete"
+  [danger]="true"
+  [busy]="deleting()"
+  (confirmed)="confirmDelete()"
+  (cancelled)="toDelete.set(null)" />

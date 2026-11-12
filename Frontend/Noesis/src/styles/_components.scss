@@ -1,0 +1,208 @@
+// Shared component classes. Feature components only add layout.
+
+.btn {
+  --btn-bg: transparent;
+  --btn-fg: var(--ink);
+  --btn-bd: var(--rule-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--btn-bd);
+  border-radius: var(--radius);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  font-weight: 500;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease), transform 0.1s;
+
+  &:hover:not(:disabled) { --btn-bd: var(--ink-2); background: color-mix(in srgb, var(--btn-bg), var(--ink) 4%); }
+  &:active:not(:disabled) { transform: translateY(1px); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  &--primary { --btn-bg: var(--pen); --btn-fg: var(--on-pen); --btn-bd: var(--pen); }
+  &--primary:hover:not(:disabled) { --btn-bd: var(--pen); background: color-mix(in srgb, var(--pen), black 10%); }
+  &--quiet { --btn-bd: transparent; }
+  &--danger { --btn-fg: var(--danger); --btn-bd: color-mix(in srgb, var(--danger), transparent 60%); }
+  &--danger-solid { --btn-bg: var(--danger); --btn-fg: var(--on-pen); --btn-bd: var(--danger); }
+  &--sm { min-height: 28px; padding: 0 var(--space-3); font-size: var(--text-xs); }
+  &--icon { padding: 0; width: 36px; }
+  &--icon.btn--sm { width: 28px; }
+}
+
+.field {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+
+  > span { color: var(--ink-2); font-weight: 500; }
+}
+
+.input {
+  width: 100%;
+  min-height: 38px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  transition: border-color 0.15s;
+
+  &:hover { border-color: var(--ink-3); }
+  &:focus { outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus), transparent 80%); }
+  &::placeholder { color: var(--ink-3); }
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+
+// Status pill: dot + label, colour carries meaning.
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  background: var(--paper-sunk);
+  color: var(--ink-2);
+  white-space: nowrap;
+
+  &::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  &--ok { background: var(--ok-soft); color: var(--ok); }
+  &--warn { background: var(--warn-soft); color: var(--warn); }
+  &--danger { background: var(--danger-soft); color: var(--danger); }
+  &--busy::before { animation: pulse 1.2s ease-in-out infinite; }
+}
+
+// Citation reference: a margin note in red pen.
+.cite {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 1px 7px;
+  border: 1px solid color-mix(in srgb, var(--pen), transparent 65%);
+  border-radius: var(--radius-sm);
+  background: var(--pen-soft);
+  color: var(--pen);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s;
+
+  &:hover { background: color-mix(in srgb, var(--pen), transparent 82%); }
+  &--gone { cursor: default; opacity: 0.7; border-style: dashed; }
+}
+
+.cite-mark {
+  font-family: var(--font-mono);
+  font-size: 0.68em;
+  vertical-align: super;
+  line-height: 0;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--pen);
+  cursor: pointer;
+  font-weight: 500;
+  &:hover { text-decoration: underline; }
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex: none;
+}
+
+.skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--paper-sunk) 25%, var(--rule) 50%, var(--paper-sunk) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.empty {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-7) var(--space-5);
+  text-align: center;
+  color: var(--ink-2);
+
+  h3 { color: var(--ink); }
+  p { max-width: 42ch; }
+}
+
+.alert {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--danger);
+  background: var(--danger-soft);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-size: var(--text-sm);
+
+  &--warn { border-color: var(--warn); background: var(--warn-soft); }
+  &--ok { border-color: var(--ok); background: var(--ok-soft); }
+  > div { flex: 1; }
+}
+
+// Segmented control (mode / scope switches).
+.seg {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--paper-sunk);
+
+  button {
+    min-height: 28px;
+    padding: 0 var(--space-3);
+    border: 0;
+    border-radius: calc(var(--radius) - 2px);
+    background: none;
+    color: var(--ink-2);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+
+    &[aria-pressed='true'] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px #0000001f; }
+    &:hover:not([aria-pressed='true']) { color: var(--ink); }
+  }
+}
+
+dialog.dialog {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  padding: 0;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+
+  &::backdrop { background: #1e1a1559; backdrop-filter: blur(1px); }
+  header { padding: var(--space-5) var(--space-5) var(--space-3); }
+  .dialog__body { padding: 0 var(--space-5); overflow: auto; }
+  footer { display: flex; justify-content: flex-end; gap: var(--space-2); padding: var(--space-5); }
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 50% { opacity: 0.3; } }
+@keyframes shimmer { to { background-position: -200% 0; } }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } }

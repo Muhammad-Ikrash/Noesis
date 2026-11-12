@@ -1,0 +1,46 @@
+.page { width: min(1180px, 100%); margin: 0 auto; padding: var(--space-7) var(--space-5) var(--space-8); }
+.intro { max-width: 720px; margin-bottom: var(--space-7); h1 { margin: var(--space-2) 0 var(--space-4); } em { color: var(--pen); } }
+.lede { font-family: var(--font-read); font-size: var(--text-lg); color: var(--ink-2); }
+.grid { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: var(--space-7); align-items: start; }
+
+.maker {
+  display: grid; gap: var(--space-5); padding: var(--space-5);
+  position: sticky; top: calc(var(--topbar-h) + var(--space-5));
+  h2 { font-size: var(--text-lg); }
+}
+fieldset { border: 0; padding: 0; margin: 0; }
+legend { font-size: var(--text-sm); font-weight: 500; color: var(--ink-2); margin-bottom: var(--space-2); }
+.docs {
+  list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 240px; overflow: auto;
+  label {
+    display: flex; gap: var(--space-2); align-items: center; padding: 6px var(--space-2);
+    border-radius: var(--radius-sm); font-size: var(--text-sm); cursor: pointer;
+    &:hover { background: var(--paper-sunk); }
+    &.is-on { background: var(--pen-soft); }
+    span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    input { accent-color: var(--pen); }
+  }
+}
+input[type='range'] { accent-color: var(--pen); width: 100%; }
+.small { font-size: var(--text-sm); }
+
+.list-head { padding-bottom: var(--space-3); border-bottom: 2px solid var(--ink); }
+.quizzes {
+  list-style: none; margin: 0; padding: 0;
+  li { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4) var(--space-2); border-bottom: 1px solid var(--rule); }
+  .mono { font-size: var(--text-xs); }
+}
+.q__main { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.q__title { font-family: var(--font-read); font-size: var(--text-read); text-decoration: none; &:hover { color: var(--pen); } }
+.score {
+  font-family: var(--font-read); font-size: var(--text-xl); line-height: 1; color: var(--ink-2);
+  span { font-size: var(--text-sm); color: var(--ink-3); }
+  &.is-good { color: var(--ok); }
+}
+
+@media (max-width: 900px) {
+  .page { padding: var(--space-5) var(--space-4) var(--space-7); }
+  .grid { grid-template-columns: 1fr; }
+  .maker { position: static; }
+}
+@media (max-width: 520px) { .quizzes .score { display: none; } }

@@ -1,0 +1,92 @@
+<div class="page">
+  <section class="intro">
+    <p class="eyebrow">Quizzes</p>
+    <h1>Test yourself on <em>what you've read.</em></h1>
+    <p class="lede">Questions are written only from your PDFs, and every answer links to the page that proves it.</p>
+  </section>
+
+  <div class="grid">
+    <form class="maker panel" (submit)="$event.preventDefault(); generate()" aria-labelledby="maker-h">
+      <h2 id="maker-h">New quiz</h2>
+
+      <fieldset>
+        <legend>From these PDFs</legend>
+        @if (!library().length) {
+          <p class="muted small">No processed PDFs yet. <a routerLink="/library">Upload one</a> first.</p>
+        } @else {
+          <ul class="docs">
+            @for (d of library(); track d.id) {
+              <li>
+                <label [class.is-on]="picked().has(d.id)">
+                  <input type="checkbox" [checked]="picked().has(d.id)" (change)="toggle(d.id)" />
+                  <span>{{ d.filename }}</span>
+                </label>
+              </li>
+            }
+          </ul>
+        }
+      </fieldset>
+
+      <label class="field">
+        <span>Topic <span class="muted">(optional)</span></span>
+        <input class="input" name="topic" [ngModel]="topic()" (ngModelChange)="topic.set($event)"
+               placeholder="e.g. cellular respiration" maxlength="500" />
+      </label>
+
+      <label class="field">
+        <span>Questions: <strong class="mono">{{ count() }}</strong></span>
+        <input type="range" name="count" min="3" max="15" step="1" [ngModel]="count()" (ngModelChange)="count.set(+$event)" />
+      </label>
+
+      @if (genError()) { <div class="alert" role="alert"><div>{{ genError() }}</div></div> }
+
+      <button class="btn btn--primary" type="submit" [disabled]="!canGenerate()">
+        @if (generating()) { <span class="spinner"></span> Writing questions… } @else { <app-icon name="quiz" [size]="16" /> Generate quiz }
+      </button>
+      @if (generating()) { <p class="muted small">This takes a few seconds while Noesis reads the passages.</p> }
+    </form>
+
+    <section aria-labelledby="past-h">
+      <div class="list-head"><h2 id="past-h">Your quizzes</h2></div>
+      @if (loading()) {
+        @for (i of [1, 2, 3]; track i) { <div class="skeleton" style="height: 64px; margin-top: 12px"></div> }
+      } @else if (error()) {
+        <div class="alert" role="alert">
+          <div>{{ error() }}</div>
+          <button class="btn btn--sm" type="button" (click)="load()">Retry</button>
+        </div>
+      } @else if (!quizzes().length) {
+        <div class="empty">
+          <app-icon name="quiz" [size]="28" />
+          <h3>No quizzes yet</h3>
+          <p>Choose some PDFs and generate your first quiz. You can retake it as often as you like.</p>
+        </div>
+      } @else {
+        <ul class="quizzes">
+          @for (q of quizzes(); track q.id) {
+            <li>
+              <div class="q__main">
+                <a [routerLink]="['/quizzes', q.id]" class="q__title">{{ q.title }}</a>
+                <span class="mono muted">{{ q.question_count }} questions · {{ ago(q.created_at) }}
+                  @if (q.attempt_count) { · {{ q.attempt_count }} attempt{{ q.attempt_count > 1 ? 's' : '' }} }</span>
+              </div>
+              @if (q.best_score !== null) {
+                <span class="score" [class.is-good]="pct(q) >= 70" [title]="'Best: ' + q.best_score + '/' + q.question_count">
+                  {{ q.best_score }}<span>/{{ q.question_count }}</span>
+                </span>
+              }
+              <a class="btn btn--sm" [routerLink]="['/quizzes', q.id]">{{ q.attempt_count ? 'Retake' : 'Start' }}</a>
+              <button class="btn btn--quiet btn--icon btn--sm" type="button" (click)="toDelete.set(q)" [attr.aria-label]="'Delete ' + q.title">
+                <app-icon name="trash" [size]="15" />
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  </div>
+</div>
+
+<app-confirm-dialog [open]="!!toDelete()" title="Delete this quiz?" confirmLabel="Delete" [danger]="true" [busy]="deleting()"
+                    [message]="'“' + (toDelete()?.title ?? '') + '” and all its attempts will be removed.'"
+                    (confirmed)="confirmDelete()" (cancelled)="toDelete.set(null)" />
