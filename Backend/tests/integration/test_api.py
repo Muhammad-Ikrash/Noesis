@@ -179,6 +179,15 @@ def test_basic_mode_without_sources_does_not_call_llm(client, llm):
     assert llm.calls == []
 
 
+def test_min_score_drops_unrelated_chunks(client, llm, settings):
+    doc = upload(client, BIO).json()["document"]["id"]
+    conv = new_chat(client, [doc])
+    settings.retrieval_min_score = 0.9  # nothing in BIO is that close to this question
+    body = ask(client, conv, "When did the French revolution begin?").json()
+    assert body["answer_status"] == "insufficient_context" and body["retrieved"] == []
+    assert llm.calls == []
+
+
 # --- ownership -----------------------------------------------------------------
 
 

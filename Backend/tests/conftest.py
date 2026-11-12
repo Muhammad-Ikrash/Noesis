@@ -70,6 +70,8 @@ def settings(tmp_path) -> Settings:
         chunk_size=400,
         chunk_overlap=50,
         retrieval_top_k=4,
+        # The bag-of-words fake embedder scores loosely; tests that need the threshold set it.
+        retrieval_min_score=0.0,
         history_max_messages=4,
     )
 

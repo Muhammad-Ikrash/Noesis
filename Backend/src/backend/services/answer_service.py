@@ -77,6 +77,7 @@ def ask(
         query=build_retrieval_query(question, previous_questions),
         document_ids=document_ids,
         top_k=settings.retrieval_top_k,
+        min_score=settings.retrieval_min_score,
     )
 
     if not chunks and mode is LearningMode.BASIC:

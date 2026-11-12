@@ -39,6 +39,7 @@ def retrieve(
     query: str,
     document_ids: list[uuid.UUID] | None,
     top_k: int,
+    min_score: float = 0.0,
 ) -> list[RetrievedChunk]:
     """Similarity search restricted to the owner's completed documents.
 
@@ -65,6 +66,9 @@ def retrieve(
     )
     if document_ids is not None:
         stmt = stmt.where(Document.id.in_(document_ids))
+    if min_score > 0:
+        # score = 1 - cosine distance, so "score >= min_score" is "distance <= 1 - min_score".
+        stmt = stmt.where(distance <= 1.0 - min_score)
 
     # Keep scanning the HNSW index until enough rows pass the owner/document filters (pgvector >= 0.8).
     db.execute(text("SET LOCAL hnsw.iterative_scan = relaxed_order"))

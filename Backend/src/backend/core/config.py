@@ -47,6 +47,8 @@ class Settings(BaseSettings):
     min_page_chars: int = 20
 
     retrieval_top_k: int = Field(default=8, gt=0, le=50)
+    # Chunks with cosine similarity below this never reach the LLM. 0 disables the filter.
+    retrieval_min_score: float = Field(default=0.3, ge=0, le=1)
     history_max_messages: int = Field(default=8, ge=0, le=50)
     # How many previous user turns are folded into the retrieval query.
     query_history_turns: int = Field(default=2, ge=0)

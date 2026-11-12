@@ -1,6 +1,6 @@
 import {
-  ChangeDetectionStrategy, Component, DestroyRef, ElementRef, computed, effect, inject, input,
-  signal, untracked, viewChild,
+  ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, afterNextRender, computed, effect, inject,
+  input, signal, untracked, viewChild,
 } from '@angular/core';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { firstValueFrom } from 'rxjs';
@@ -48,6 +48,7 @@ export class PdfViewer {
   readonly target = input<ViewerTarget | null>(null);
 
   private readonly docs = inject(DocumentsService);
+  private readonly injector = inject(Injector);
   private readonly scroller = viewChild.required<ElementRef<HTMLElement>>('scroller');
 
   protected readonly loading = signal(true);
@@ -119,11 +120,12 @@ export class PdfViewer {
       );
       this.current.set(1);
       this.loading.set(false);
-      queueMicrotask(() => {
+      // The page shells only exist in the DOM after the next render, not after a microtask.
+      afterNextRender(() => {
         this.observe();
         const t = this.target();
         if (t) this.goTo(t.page, t.quote ?? null);
-      });
+      }, { injector: this.injector });
     } catch (e) {
       if (gen !== this.generation) return;
       this.loading.set(false);
@@ -188,10 +190,17 @@ export class PdfViewer {
     const n = clamp(page, 1, this.total());
     const el = this.shellEl(n);
     if (!el) return;
-    el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    this.scrollToShell(el);
     this.current.set(n);
     this.pendingHighlight = { page: n, quote };
     if (this.rendered.get(n) === this.generation && el.querySelector('.textLayer span')) this.highlight(n, quote);
+  }
+
+  /** Jump within the viewer's own pane: smooth scrolling can stall (background tabs) and scrollIntoView moves outer panes. */
+  private scrollToShell(el: HTMLElement): void {
+    const root = this.scroller().nativeElement;
+    const top = root.scrollTop + el.getBoundingClientRect().top - root.getBoundingClientRect().top - 12;
+    root.scrollTo({ top, behavior: 'instant' });
   }
 
   private highlight(n: number, quote: string | null): void {
@@ -255,11 +264,12 @@ export class PdfViewer {
     this.generation++;
     this.rendered.clear();
     this.shells.update((list) => list.map((s) => ({ ...s, w: s.w / ratio, h: s.h / ratio })));
-    queueMicrotask(() => {
+    afterNextRender(() => {
       this.scroller().nativeElement.querySelectorAll('.pg').forEach((el) => el.replaceChildren());
       this.observe();
-      this.shellEl(keep)?.scrollIntoView({ block: 'start' });
-    });
+      const el = this.shellEl(keep);
+      if (el) this.scrollToShell(el);
+    }, { injector: this.injector });
   }
 }
 
