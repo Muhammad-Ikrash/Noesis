@@ -1,4 +1,16 @@
-from tests.integration.test_api import API, BIO, new_chat, upload
+from tests.integration.test_api import API, new_chat, upload
+
+# Quiz sampling skips passages under 150 characters, so these pages are longer than BIO.
+CELLS = [
+    (
+        "Photosynthesis happens in chloroplasts using chlorophyll. Light energy splits water, "
+        "releasing oxygen, and the Calvin cycle then fixes carbon dioxide into sugars."
+    ),
+    (
+        "Mitochondria produce ATP by aerobic respiration. Glucose is broken down through "
+        "glycolysis, the Krebs cycle and the electron transport chain, which needs oxygen."
+    ),
+]
 
 
 def _queue_quiz(llm, n=2):
@@ -17,7 +29,7 @@ def _queue_quiz(llm, n=2):
 
 
 def test_generate_attempt_and_review(client, llm):
-    doc = upload(client, BIO).json()["document"]["id"]
+    doc = upload(client, CELLS).json()["document"]["id"]
     _queue_quiz(llm)
     r = client.post(f"{API}/quizzes", json={"document_ids": [doc], "question_count": 2})
     assert r.status_code == 201, r.text
@@ -47,7 +59,7 @@ def test_generate_attempt_and_review(client, llm):
 
 
 def test_quiz_from_conversation_with_topic(client, llm):
-    doc = upload(client, BIO).json()["document"]["id"]
+    doc = upload(client, CELLS).json()["document"]["id"]
     conv = new_chat(client, [doc])
     _queue_quiz(llm, 1)
     r = client.post(
@@ -58,7 +70,7 @@ def test_quiz_from_conversation_with_topic(client, llm):
 
 
 def test_wrong_answer_count_rejected(client, llm):
-    doc = upload(client, BIO).json()["document"]["id"]
+    doc = upload(client, CELLS).json()["document"]["id"]
     _queue_quiz(llm)
     quiz = client.post(f"{API}/quizzes", json={"document_ids": [doc]}).json()
     assert (

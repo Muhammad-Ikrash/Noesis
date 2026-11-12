@@ -43,6 +43,9 @@ class Document(UUIDPk, Timestamps, Base):
     error_message: Mapped[str | None] = mapped_column(Text)
     page_count: Mapped[int | None] = mapped_column(Integer)
     embedding_model: Mapped[str | None] = mapped_column(String(255))
+    # Chunks embedded so far / total, while processing. Null total = still reading the PDF.
+    progress_done: Mapped[int | None] = mapped_column(Integer)
+    progress_total: Mapped[int | None] = mapped_column(Integer)
 
     pages: Mapped[list["DocumentPage"]] = relationship(
         back_populates="document",

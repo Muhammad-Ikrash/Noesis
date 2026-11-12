@@ -26,6 +26,8 @@ class DocumentOut(BaseModel):
     error_message: str | None
     page_count: int | None
     embedding_model: str | None
+    progress_done: int | None
+    progress_total: int | None
     created_at: datetime
     updated_at: datetime
 

@@ -24,10 +24,27 @@ def _claim(db: Session, document_id: uuid.UUID) -> bool:
     result = db.execute(
         update(Document)
         .where(Document.id == document_id, Document.status == DocumentStatus.PENDING)
-        .values(status=DocumentStatus.PROCESSING, error_message=None)
+        .values(
+            status=DocumentStatus.PROCESSING,
+            error_message=None,
+            progress_done=None,
+            progress_total=None,
+        )
     )
     db.commit()
     return result.rowcount == 1
+
+
+def _report_progress(
+    db: Session, document_id: uuid.UUID, done: int, total: int
+) -> None:
+    """Commit progress on its own connection so the chunk writes stay one transaction."""
+    with db.get_bind().begin() as conn:
+        conn.execute(
+            update(Document)
+            .where(Document.id == document_id)
+            .values(progress_done=done, progress_total=total)
+        )
 
 
 def ingest_document(
@@ -114,6 +131,7 @@ def _ingest(
         overlap=settings.chunk_overlap,
     )
     batch = settings.embedding_batch_size
+    _report_progress(db, doc.id, 0, len(chunks))
     for start in range(0, len(chunks), batch):
         part = chunks[start : start + batch]
         vectors = embedder.embed_documents([c.text for c in part])
@@ -137,6 +155,9 @@ def _ingest(
                     embedding_model=embedder.model,
                 )
             )
+        done = min(start + batch, len(chunks))
+        _report_progress(db, doc.id, done, len(chunks))
+        logger.info("Document %s: embedded %d/%d chunks", doc.id, done, len(chunks))
 
     doc.embedding_model = embedder.model
     doc.status = DocumentStatus.COMPLETED
