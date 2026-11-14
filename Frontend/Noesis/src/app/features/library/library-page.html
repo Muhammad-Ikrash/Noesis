@@ -11,14 +11,43 @@
   <div class="grid">
     <section class="shelf" aria-labelledby="shelf-h">
       <div class="shelf__head">
-        <h2 id="shelf-h">Documents <span class="count mono">{{ docs().length }}</span></h2>
+        <h2 id="shelf-h">Documents <span class="count mono">{{ filtering() ? visibleDocs().length + '/' + docs().length : docs().length }}</span></h2>
         @if (readyCount() > 0) {
           <label class="check-all">
             <input type="checkbox" [checked]="allSelected()" (change)="toggleAll()" />
-            Select all ready
+            {{ filtering() ? 'Select all shown' : 'Select all ready' }}
           </label>
         }
       </div>
+
+      @if (!loading() && !error() && docs().length) {
+        <div class="tools" role="search" aria-label="Filter documents">
+          <label class="tools__search">
+            <app-icon name="search" [size]="15" />
+            <span class="sr-only">Search by filename</span>
+            <input class="input" type="search" placeholder="Search by filename" [value]="query()"
+                   (input)="query.set($any($event.target).value)" (keydown)="onQueryKey($event)" />
+          </label>
+          <label>
+            <span class="sr-only">Status</span>
+            <select class="input" [value]="statusFilter()" (change)="statusFilter.set($any($event.target).value)">
+              <option value="all">All statuses</option>
+              <option value="ready">Ready</option>
+              <option value="processing">Processing</option>
+              <option value="failed">Failed</option>
+            </select>
+          </label>
+          <label>
+            <span class="sr-only">Sort</span>
+            <select class="input" [value]="sort()" (change)="sort.set($any($event.target).value)">
+              <option value="default">Default order</option>
+              <option value="name">Name A–Z</option>
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+            </select>
+          </label>
+        </div>
+      }
 
       @if (loading()) {
         <div class="rows" aria-busy="true" aria-label="Loading documents">
@@ -41,9 +70,16 @@
           <h3>Your shelf is empty</h3>
           <p>Upload a PDF to start. Lecture notes, a textbook chapter, or past papers all work.</p>
         </div>
+      } @else if (visibleDocs().length === 0) {
+        <div class="empty">
+          <app-icon name="search" [size]="28" />
+          <h3>No documents match</h3>
+          <p>Nothing in your library matches the current search or status filter.</p>
+          <button class="btn btn--sm" type="button" (click)="clearFilters()">Clear filters</button>
+        </div>
       } @else {
         <ul class="rows">
-          @for (doc of docs(); track doc.id) {
+          @for (doc of visibleDocs(); track doc.id) {
             <li class="row" [class.is-selected]="selected().has(doc.id)">
               <input type="checkbox" [checked]="selected().has(doc.id)" (change)="toggle(doc.id)"
                      [disabled]="doc.status !== 'completed'" [attr.aria-label]="'Select ' + doc.filename" />
@@ -79,7 +115,12 @@
 
       @if (selectedReady().length) {
         <div class="selbar" role="region" aria-label="Selection actions">
-          <span><strong>{{ selectedReady().length }}</strong> selected</span>
+          <span><strong>{{ selectedReady().length }}</strong> selected
+            @if (hiddenSelected()) { <span class="selbar__hidden">· {{ hiddenSelected() }} hidden by filters</span> }
+          </span>
+          @if (hiddenSelected()) {
+            <button class="btn btn--quiet btn--sm" type="button" (click)="clearFilters()">Show</button>
+          }
           <button class="btn btn--quiet btn--sm" type="button" (click)="clearSelection()">Clear</button>
           <span class="spacer"></span>
           <button class="btn btn--sm" type="button" (click)="quiz(selectedIds())">

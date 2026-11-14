@@ -16,6 +16,19 @@
 .count { font-size: var(--text-sm); color: var(--ink-3); vertical-align: middle; margin-left: 6px; }
 .check-all { display: flex; gap: 6px; align-items: center; font-size: var(--text-sm); color: var(--ink-2); cursor: pointer; }
 
+.tools {
+  display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center;
+  padding: var(--space-3) 0; border-bottom: 1px solid var(--rule);
+  .input { min-height: 32px; padding: var(--space-1) var(--space-3); font-size: var(--text-sm); }
+  select.input { width: auto; padding-right: var(--space-5); cursor: pointer; }
+}
+.tools__search {
+  position: relative; flex: 1 1 220px; display: flex; align-items: center;
+  app-icon { position: absolute; left: var(--space-3); color: var(--ink-3); pointer-events: none; }
+  .input { padding-left: calc(var(--space-3) + 22px); }
+}
+.selbar__hidden { opacity: .75; }
+
 .rows { list-style: none; margin: 0; padding: 0; }
 .row {
   display: flex; align-items: center; gap: var(--space-4);
