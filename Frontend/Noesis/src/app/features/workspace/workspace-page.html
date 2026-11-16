@@ -6,9 +6,21 @@
   </div>
   @if (conversations().length === 0) {
     <p class="rail__empty muted">No sessions yet.</p>
+  } @else {
+    <div class="rail__search" role="search">
+      <app-icon name="search" [size]="14" />
+      <input class="input" type="search" placeholder="Find a session" aria-label="Find a study session by title"
+             [value]="railQuery()" (input)="railQuery.set($any($event.target).value)" (keydown)="onRailKey($event)" />
+    </div>
+    @if (filteredConversations().length === 0) {
+      <p class="rail__empty muted">
+        No sessions match “{{ railQuery().trim() }}”.
+        <button type="button" class="linkish" (click)="railQuery.set('')">Clear</button>
+      </p>
+    }
   }
   <ul>
-    @for (c of conversations(); track c.id) {
+    @for (c of filteredConversations(); track c.id) {
       <li>
         <a [routerLink]="['/study', c.id]" [class.is-active]="c.id === conversationId()">
           <span class="rail__title">{{ c.title }}</span>
@@ -141,7 +153,12 @@
             <div class="empty chat__empty">
               <p class="eyebrow">Start the conversation</p>
               <h3>Ask anything about {{ conv.documents.length === 1 ? 'this PDF' : 'your PDFs' }}.</h3>
-              <p>Try “Summarise the main argument”, “Explain the second figure”, or “What's the difference between X and Y?”</p>
+              <p>Ask your own question, or start from one of these. You can edit it before sending.</p>
+              <div class="starters" role="group" aria-label="Study prompt starters">
+                @for (s of starters; track s) {
+                  <button class="btn btn--sm" type="button" (click)="useStarter(s)">{{ s }}</button>
+                }
+              </div>
               @if (noDocsForSession()) {
                 <div class="alert alert--warn">
                   <div>No processed PDFs are attached, and search is set to <em>This chat's PDFs</em>. Attach some, or switch to <em>Whole library</em>.</div>

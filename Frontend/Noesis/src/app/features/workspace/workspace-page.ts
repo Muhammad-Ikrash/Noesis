@@ -23,6 +23,14 @@ interface OpenDoc {
   filename: string;
 }
 
+/** Optional starters for an empty chat. Picking one only fills the composer; nothing is sent. */
+const STUDY_STARTERS = [
+  'Explain the main ideas',
+  'What should I review first?',
+  'Define the key terms',
+  'Give me a worked example',
+];
+
 @Component({
   selector: 'app-workspace-page',
   imports: [RouterLink, Icon, PdfViewer, ChatMessage, Composer, AttachDialog, ConfirmDialog],
@@ -48,6 +56,13 @@ export class WorkspacePage {
   // Rail
   protected readonly conversations = signal<Conversation[]>([]);
   protected readonly railOpen = signal(false);
+  protected readonly railQuery = signal('');
+  /** Title filter over the already-loaded list; links, rename and delete still use each conversation's id. */
+  protected readonly filteredConversations = computed(() => {
+    const q = this.railQuery().trim().toLowerCase();
+    return q ? this.conversations().filter((c) => c.title.toLowerCase().includes(q)) : this.conversations();
+  });
+  protected readonly starters = STUDY_STARTERS;
 
   // Conversation
   protected readonly detail = signal<ConversationDetail | null>(null);
@@ -214,6 +229,19 @@ export class WorkspacePage {
     this.draft.set(err.question);
     this.sendError.set(null);
     queueMicrotask(() => this.composer()?.focus());
+  }
+
+  /** Puts a starter into the editable composer; sending still goes through send() with the current mode and scope. */
+  protected useStarter(text: string): void {
+    this.draft.set(text);
+    queueMicrotask(() => this.composer()?.focus());
+  }
+
+  protected onRailKey(event: KeyboardEvent): void {
+    if (event.key === 'Escape' && this.railQuery()) {
+      event.stopPropagation();
+      this.railQuery.set('');
+    }
   }
 
   protected setMode(mode: LearningMode): void {
