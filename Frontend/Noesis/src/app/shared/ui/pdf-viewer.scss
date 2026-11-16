@@ -6,6 +6,23 @@
   border-bottom: 1px solid var(--rule); background: var(--paper);
   .spacer { flex: 1; }
 }
+.bar .is-on { color: var(--pen); }
+
+.find {
+  display: flex; align-items: center; gap: var(--space-1); flex: none;
+  padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--rule); background: var(--paper);
+  animation: rise .15s var(--ease);
+  .input { flex: 1; min-width: 0; min-height: 30px; padding: var(--space-1) var(--space-3); font-size: var(--text-sm); }
+}
+.find__count {
+  display: inline-flex; align-items: center; justify-content: flex-end; min-width: 92px;
+  padding: 0 var(--space-2); font-size: var(--text-xs); white-space: nowrap;
+}
+.find__note {
+  flex: none; margin: 0; padding: var(--space-1) var(--space-3); font-size: 11px;
+  color: var(--warn); background: var(--paper); border-bottom: 1px solid var(--rule);
+}
+
 .pageno {
   display: flex; align-items: center; gap: 6px; font-size: var(--text-xs);
   input {
@@ -30,6 +47,10 @@
   ::ng-deep .textLayer .nx-hl {
     background: var(--highlight); border-radius: 2px;
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--highlight), #a67c00 30%);
+  }
+  ::ng-deep .textLayer .nx-find {
+    background: color-mix(in srgb, var(--pen), transparent 65%); border-radius: 2px;
+    box-shadow: 0 0 0 1px var(--pen);
   }
   &.is-flash { box-shadow: 0 0 0 3px var(--pen), 0 6px 18px -10px #0000004d; }
 }
