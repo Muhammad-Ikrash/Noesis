@@ -10,6 +10,8 @@ import { ConversationsService } from '../../core/services/conversations.service'
 import { DocumentsService } from '../../core/services/documents.service';
 import { QuizService } from '../../core/services/quiz.service';
 import { ToastService } from '../../core/services/toast.service';
+import { exportFilename, sessionToMarkdown } from '../../shared/answer-text';
+import { downloadBlob } from '../../shared/download';
 import { relativeTime } from '../../shared/format';
 import { ConfirmDialog } from '../../shared/ui/confirm-dialog';
 import { Icon } from '../../shared/ui/icon';
@@ -326,6 +328,16 @@ export class WorkspacePage {
         this.toast.error(apiErrorMessage(e, 'Could not update PDFs.'));
       },
     });
+  }
+
+  /** Builds the Markdown in the browser from the loaded messages and their saved citations. */
+  protected exportMarkdown(): void {
+    const conv = this.detail();
+    const messages = this.messages();
+    if (!conv || !messages.length) return;
+    const md = sessionToMarkdown(conv, messages);
+    downloadBlob(new Blob([md], { type: 'text/markdown;charset=utf-8' }), exportFilename(conv.title));
+    this.toast.ok('Session exported as Markdown.');
   }
 
   protected quizMe(): void {

@@ -109,6 +109,10 @@
           @if (quizBusy()) { <span class="spinner"></span> } @else { <app-icon name="quiz" [size]="14" /> }
           <span class="hide-sm">Quiz me</span>
         </button>
+        <button class="btn btn--sm" type="button" (click)="exportMarkdown()" [disabled]="!messages().length"
+                title="Download this session as Markdown" aria-label="Export session as Markdown">
+          <app-icon name="download" [size]="14" /><span class="hide-sm">Export</span>
+        </button>
         <button class="btn btn--quiet btn--icon btn--sm" type="button" (click)="deleteOpen.set(true)" aria-label="Delete session" title="Delete session">
           <app-icon name="trash" [size]="15" />
         </button>

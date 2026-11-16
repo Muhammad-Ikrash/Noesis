@@ -42,24 +42,33 @@
       }
     }
 
-    @if (message().sources.length) {
-      <footer class="sources">
-        <span class="eyebrow">Sources</span>
-        <ul>
-          @for (s of message().sources; track s.position) {
-            <li>
-              @if (s.document_id) {
-                <button class="cite" type="button" (click)="openSource.emit(s)" [title]="s.quote || 'Open page ' + s.page_number">
-                  <span>{{ s.position }}</span> {{ s.filename }} · p.{{ s.page_number }}
-                </button>
-              } @else {
-                <span class="cite cite--gone" title="This PDF was deleted from your library">
-                  <span>{{ s.position }}</span> {{ s.filename }} · p.{{ s.page_number }} · deleted
-                </span>
-              }
-            </li>
-          }
-        </ul>
+    @if (message().sources.length || canCopy()) {
+      <footer class="sources" [class.sources--bare]="!message().sources.length">
+        @if (message().sources.length) {
+          <span class="eyebrow">Sources</span>
+          <ul>
+            @for (s of message().sources; track s.position) {
+              <li>
+                @if (s.document_id) {
+                  <button class="cite" type="button" (click)="openSource.emit(s)" [title]="s.quote || 'Open page ' + s.page_number">
+                    <span>{{ s.position }}</span> {{ s.filename }} · p.{{ s.page_number }}
+                  </button>
+                } @else {
+                  <span class="cite cite--gone" title="This PDF was deleted from your library">
+                    <span>{{ s.position }}</span> {{ s.filename }} · p.{{ s.page_number }} · deleted
+                  </span>
+                }
+              </li>
+            }
+          </ul>
+        }
+        @if (canCopy()) {
+          <button class="btn btn--quiet btn--icon btn--sm copy" type="button" (click)="copy()"
+                  [attr.aria-label]="message().sources.length ? 'Copy answer with sources' : 'Copy answer'"
+                  [title]="message().sources.length ? 'Copy answer with sources' : 'Copy answer'">
+            <app-icon [name]="copied() ? 'check' : 'copy'" [size]="15" />
+          </button>
+        }
       </footer>
     }
   </article>
