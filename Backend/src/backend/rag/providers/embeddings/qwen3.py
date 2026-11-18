@@ -1,9 +1,10 @@
 import logging
 import math
-import os
 import threading
+from pathlib import Path
 
 from backend.rag.interfaces import ProviderError
+from backend.rag.providers.embeddings.cpu_tuning import calibrate_threads
 
 logger = logging.getLogger(__name__)
 
@@ -37,12 +38,18 @@ class Qwen3EmbeddingProvider:
         device: str,
         batch_size: int,
         max_seq_length: int,
+        cpu_dtype: str = "fp32",
+        cpu_threads: int = 0,
+        calibration_file: Path | None = None,
     ) -> None:
         self.model = model
         self.dimension = dimension
         self._device = device
         self._batch_size = batch_size
         self._max_seq_length = max_seq_length
+        self._cpu_dtype = cpu_dtype
+        self._cpu_threads = cpu_threads
+        self._calibration_file = calibration_file
         self._encode_batch_size = batch_size
         self._st = None
         self._lock = threading.Lock()
@@ -73,30 +80,37 @@ class Qwen3EmbeddingProvider:
                 from sentence_transformers import SentenceTransformer
 
                 device = self._resolve_device()
-                if device == "cpu":
-                    # Use every logical core; torch defaults to the physical ones only.
-                    torch.set_num_threads(os.cpu_count() or torch.get_num_threads())
-                    # One text per forward pass: chunks differ a lot in length, and on a CPU
-                    # padding them to the longest in a batch costs more than batching saves.
-                    self._encode_batch_size = 1
-                else:
-                    self._encode_batch_size = self._batch_size
+                on_cpu = device == "cpu"
+                # fp32 by default: the checkpoint is bf16, which is several times slower on
+                # CPUs without native bf16, and GTX 16-series GPUs can produce NaNs in fp16.
+                dtype_name = self._cpu_dtype if on_cpu else "fp32"
+                dtype = torch.bfloat16 if dtype_name == "bf16" else torch.float32
+                # One text per forward pass on a CPU: chunks differ a lot in length, and
+                # padding them to the longest in a batch costs more than batching saves.
+                self._encode_batch_size = 1 if on_cpu else self._batch_size
+                if on_cpu and self._cpu_threads:
+                    torch.set_num_threads(self._cpu_threads)
                 logger.info(
-                    "Loading embedding model %s on %s (fp32, %d threads)",
+                    "Loading embedding model %s on %s (%s)",
                     self.model,
                     device,
-                    torch.get_num_threads(),
+                    dtype_name,
                 )
-                # fp32 everywhere: the checkpoint is bf16, which is several times slower on
-                # CPUs without bf16 support, and GTX 16-series GPUs can produce NaNs in fp16.
-                self._st = SentenceTransformer(
+                st = SentenceTransformer(
                     self.model,
                     device=device,
                     truncate_dim=self.dimension,
-                    model_kwargs={"dtype": torch.float32},
+                    model_kwargs={"dtype": dtype},
                 )
                 # Qwen3 defaults to 32k tokens; attention memory grows with the square of it.
-                self._st.max_seq_length = self._max_seq_length
+                st.max_seq_length = self._max_seq_length
+                if on_cpu and not self._cpu_threads:
+                    calibrate_threads(st, torch, self._calibration_file, dtype_name)
+                if on_cpu:
+                    logger.info(
+                        "Embedding on the CPU with %d threads", torch.get_num_threads()
+                    )
+                self._st = st
             return self._st
 
     def _encode(self, texts: list[str], prompt_name: str | None) -> list[list[float]]:

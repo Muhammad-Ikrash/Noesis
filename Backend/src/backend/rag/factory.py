@@ -45,6 +45,11 @@ def build_embedder(settings: Settings) -> EmbeddingProvider:
             device=settings.embedding_device,
             batch_size=settings.embedding_batch_size,
             max_seq_length=settings.embedding_max_seq_length,
+            cpu_dtype=settings.embedding_cpu_dtype,
+            cpu_threads=settings.embedding_cpu_threads,
+            # Next to the uploads folder, which is already outside git (data/).
+            calibration_file=settings.storage_dir.parent
+            / "embedding-cpu-calibration.json",
         )
     raise ConfigurationError(
         f"Unsupported embedding provider: {settings.embedding_provider}"
