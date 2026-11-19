@@ -14,6 +14,16 @@ import { UploadDropzone } from './upload-dropzone';
 
 const POLL_MS = 2500;
 
+export type StatusFilter = 'all' | 'ready' | 'processing' | 'failed';
+export type DocSort = 'default' | 'name' | 'newest' | 'oldest';
+
+const STATUS_GROUP: Record<StatusFilter, (d: DocumentOut) => boolean> = {
+  all: () => true,
+  ready: (d) => d.status === 'completed',
+  processing: (d) => d.status === 'pending' || d.status === 'processing',
+  failed: (d) => d.status === 'failed' || d.status === 'missing',
+};
+
 @Component({
   selector: 'app-library-page',
   imports: [RouterLink, Icon, UploadDropzone, ConfirmDialog],
@@ -52,12 +62,40 @@ export class LibraryPage {
   protected readonly size = formatBytes;
   protected readonly ago = relativeTime;
 
+  // Search / filter / sort (applied to the loaded list only; polling keeps writing `docs`).
+  protected readonly query = signal('');
+  protected readonly statusFilter = signal<StatusFilter>('all');
+  protected readonly sort = signal<DocSort>('default');
+  protected readonly filtering = computed(() => !!this.query().trim() || this.statusFilter() !== 'all');
+
+  protected readonly visibleDocs = computed(() => {
+    const q = this.query().trim().toLowerCase();
+    const match = STATUS_GROUP[this.statusFilter()];
+    const list = this.docs().filter((d) => match(d) && (!q || d.filename.toLowerCase().includes(q)));
+    switch (this.sort()) {
+      case 'name':
+        return [...list].sort((a, b) => a.filename.localeCompare(b.filename, undefined, { sensitivity: 'base', numeric: true }));
+      case 'newest':
+        return [...list].sort((a, b) => b.created_at.localeCompare(a.created_at));
+      case 'oldest':
+        return [...list].sort((a, b) => a.created_at.localeCompare(b.created_at));
+      default:
+        return list;
+    }
+  });
+
   protected readonly readyCount = computed(() => this.docs().filter((d) => d.status === 'completed').length);
+  private readonly visibleReady = computed(() => this.visibleDocs().filter((d) => d.status === 'completed'));
   protected readonly selectedReady = computed(() =>
     this.docs().filter((d) => this.selected().has(d.id) && d.status === 'completed'),
   );
+  /** Selected PDFs that the current filter hides; they are still included in Study / Quiz. */
+  protected readonly hiddenSelected = computed(() => {
+    const visible = new Set(this.visibleDocs().map((d) => d.id));
+    return this.selectedReady().filter((d) => !visible.has(d.id)).length;
+  });
   protected readonly allSelected = computed(
-    () => this.readyCount() > 0 && this.selectedReady().length === this.readyCount(),
+    () => this.visibleReady().length > 0 && this.visibleReady().every((d) => this.selected().has(d.id)),
   );
   private readonly busy = computed(() => this.docs().some((d) => d.status === 'pending' || d.status === 'processing'));
 
@@ -121,10 +159,24 @@ export class LibraryPage {
     });
   }
 
+  /** Selects or clears the ready PDFs currently shown; selections hidden by a filter are left alone. */
   protected toggleAll(): void {
-    this.selected.set(
-      this.allSelected() ? new Set() : new Set(this.docs().filter((d) => d.status === 'completed').map((d) => d.id)),
-    );
+    const ids = this.visibleReady().map((d) => d.id);
+    const clear = this.allSelected();
+    this.selected.update((s) => {
+      const next = new Set(s);
+      for (const id of ids) clear ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  protected clearFilters(): void {
+    this.query.set('');
+    this.statusFilter.set('all');
+  }
+
+  protected onQueryKey(event: KeyboardEvent): void {
+    if (event.key === 'Escape') this.query.set('');
   }
 
   protected study(ids: string[]): void {

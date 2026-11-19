@@ -10,6 +10,8 @@ import { ConversationsService } from '../../core/services/conversations.service'
 import { DocumentsService } from '../../core/services/documents.service';
 import { QuizService } from '../../core/services/quiz.service';
 import { ToastService } from '../../core/services/toast.service';
+import { exportFilename, sessionToMarkdown } from '../../shared/answer-text';
+import { downloadBlob } from '../../shared/download';
 import { relativeTime } from '../../shared/format';
 import { ConfirmDialog } from '../../shared/ui/confirm-dialog';
 import { Icon } from '../../shared/ui/icon';
@@ -22,6 +24,14 @@ interface OpenDoc {
   id: string;
   filename: string;
 }
+
+/** Optional starters for an empty chat. Picking one only fills the composer; nothing is sent. */
+const STUDY_STARTERS = [
+  'Explain the main ideas',
+  'What should I review first?',
+  'Define the key terms',
+  'Give me a worked example',
+];
 
 @Component({
   selector: 'app-workspace-page',
@@ -48,6 +58,13 @@ export class WorkspacePage {
   // Rail
   protected readonly conversations = signal<Conversation[]>([]);
   protected readonly railOpen = signal(false);
+  protected readonly railQuery = signal('');
+  /** Title filter over the already-loaded list; links, rename and delete still use each conversation's id. */
+  protected readonly filteredConversations = computed(() => {
+    const q = this.railQuery().trim().toLowerCase();
+    return q ? this.conversations().filter((c) => c.title.toLowerCase().includes(q)) : this.conversations();
+  });
+  protected readonly starters = STUDY_STARTERS;
 
   // Conversation
   protected readonly detail = signal<ConversationDetail | null>(null);
@@ -216,6 +233,19 @@ export class WorkspacePage {
     queueMicrotask(() => this.composer()?.focus());
   }
 
+  /** Puts a starter into the editable composer; sending still goes through send() with the current mode and scope. */
+  protected useStarter(text: string): void {
+    this.draft.set(text);
+    queueMicrotask(() => this.composer()?.focus());
+  }
+
+  protected onRailKey(event: KeyboardEvent): void {
+    if (event.key === 'Escape' && this.railQuery()) {
+      event.stopPropagation();
+      this.railQuery.set('');
+    }
+  }
+
   protected setMode(mode: LearningMode): void {
     if (mode === this.mode()) return;
     this.mode.set(mode);
@@ -298,6 +328,16 @@ export class WorkspacePage {
         this.toast.error(apiErrorMessage(e, 'Could not update PDFs.'));
       },
     });
+  }
+
+  /** Builds the Markdown in the browser from the loaded messages and their saved citations. */
+  protected exportMarkdown(): void {
+    const conv = this.detail();
+    const messages = this.messages();
+    if (!conv || !messages.length) return;
+    const md = sessionToMarkdown(conv, messages);
+    downloadBlob(new Blob([md], { type: 'text/markdown;charset=utf-8' }), exportFilename(conv.title));
+    this.toast.ok('Session exported as Markdown.');
   }
 
   protected quizMe(): void {

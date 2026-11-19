@@ -25,6 +25,9 @@ const PATHS: Record<string, string> = {
   refresh: 'M20 11a8 8 0 0 0-14.8-4M4 4v4h4m-4 5a8 8 0 0 0 14.8 4M20 20v-4h-4',
   library: 'M5 4v16M9 4v16M13 5l4 15M19 20',
   edit: 'M4 20h4L19 9l-4-4L4 16zM14 6l4 4',
+  search: 'm20 20-4.3-4.3M18 11a7 7 0 1 1-14 0 7 7 0 0 1 14 0',
+  copy: 'M9 9h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V10a1 1 0 0 1 1-1zM5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1',
+  download: 'M12 4v12m0 0-4-4m4 4 4-4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3',
 };
 
 @Component({

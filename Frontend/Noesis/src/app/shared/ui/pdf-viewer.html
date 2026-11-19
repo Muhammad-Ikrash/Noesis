@@ -12,6 +12,10 @@
     <app-icon name="right" [size]="16" />
   </button>
   <span class="spacer"></span>
+  <button class="btn btn--quiet btn--icon btn--sm" type="button" (click)="toggleFind()" [disabled]="!total()"
+          aria-label="Search in this PDF" title="Search in this PDF" [attr.aria-pressed]="findOpen()" [class.is-on]="findOpen()">
+    <app-icon name="search" [size]="16" />
+  </button>
   <button class="btn btn--quiet btn--icon btn--sm" type="button" (click)="zoom(1 / 1.15)" [disabled]="!total()" aria-label="Zoom out">
     <app-icon name="zoom-out" [size]="16" />
   </button>
@@ -22,6 +26,36 @@
     <app-icon name="zoom-in" [size]="16" />
   </button>
 </div>
+
+@if (findOpen()) {
+  <div class="find" role="search" aria-label="Search in this PDF">
+    <input #findInput class="input" type="search" placeholder="Find in this PDF" aria-label="Find in this PDF"
+           [value]="findTerm()" (input)="onFindInput($any($event.target).value)" (keydown)="onFindKey($event)" />
+    <span class="find__count mono muted" aria-live="polite">
+      @if (findBusy()) {
+        <span class="spinner"></span>
+      } @else if (findPages().length) {
+        page {{ findIndex() + 1 }} of {{ findPages().length }}
+      } @else if (findSearched()) {
+        no matches
+      }
+    </span>
+    <button class="btn btn--quiet btn--icon btn--sm" type="button" (click)="stepFind(-1)" [disabled]="!findPages().length"
+            aria-label="Previous match" title="Previous match (Shift+Enter)">
+      <app-icon name="left" [size]="15" />
+    </button>
+    <button class="btn btn--quiet btn--icon btn--sm" type="button" (click)="stepFind(1)" [disabled]="!findPages().length"
+            aria-label="Next match" title="Next match (Enter)">
+      <app-icon name="right" [size]="15" />
+    </button>
+    <button class="btn btn--quiet btn--icon btn--sm" type="button" (click)="closeFind()" aria-label="Close search" title="Close (Esc)">
+      <app-icon name="x" [size]="15" />
+    </button>
+  </div>
+  @if (findSearched() && !findPages().length && imageOnlyPages()) {
+    <p class="find__note mono">{{ imageOnlyPages() }} image-only page{{ imageOnlyPages() > 1 ? 's have' : ' has' }} no searchable text.</p>
+  }
+}
 
 <div class="scroller" #scroller (scroll)="onScroll()" tabindex="0" aria-label="PDF pages">
   @if (loading()) {

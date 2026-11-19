@@ -1,6 +1,6 @@
 import {
   ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, afterNextRender, computed, effect, inject,
-  input, signal, untracked, viewChild,
+  input, output, signal, untracked, viewChild,
 } from '@angular/core';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { firstValueFrom } from 'rxjs';
@@ -13,6 +13,8 @@ export interface ViewerTarget {
   quote?: string | null;
   /** Changes on every request so clicking the same citation twice scrolls again. */
   nonce: number;
+  /** Jump without flashing or highlighting the page (e.g. resuming where the reader left off). */
+  quiet?: boolean;
 }
 
 interface Shell {
@@ -46,10 +48,29 @@ const MAX_SCALE = 3;
 export class PdfViewer {
   readonly documentId = input.required<string>();
   readonly target = input<ViewerTarget | null>(null);
+  /** The page the reader is on, after the initial jump has settled (user scrolling, paging, citation jumps). */
+  readonly pageChange = output<number>();
 
   private readonly docs = inject(DocumentsService);
   private readonly injector = inject(Injector);
   private readonly scroller = viewChild.required<ElementRef<HTMLElement>>('scroller');
+  private readonly findInput = viewChild<ElementRef<HTMLInputElement>>('findInput');
+
+  // In-document search
+  protected readonly findOpen = signal(false);
+  protected readonly findTerm = signal('');
+  protected readonly findBusy = signal(false);
+  /** Pages containing the term, in order. */
+  protected readonly findPages = signal<number[]>([]);
+  protected readonly findIndex = signal(-1);
+  protected readonly findSearched = signal(false);
+  /** Pages with no extractable text (image-only), found while indexing. */
+  protected readonly imageOnlyPages = signal(0);
+  private pageTexts: string[] | null = null;
+  private pageTextsFor: PDFDocumentProxy | null = null;
+  private pendingFind: { page: number; term: string } | null = null;
+  private findTimer: ReturnType<typeof setTimeout> | undefined;
+  private findRun = 0;
 
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
@@ -67,6 +88,9 @@ export class PdfViewer {
   private pendingHighlight: { page: number; quote: string | null } | null = null;
   private observer: IntersectionObserver | null = null;
   private scrollRaf = 0;
+  /** False until the initial render (and any initial target jump) is done, so page 1 isn't reported first. */
+  private settled = false;
+  private lastEmitted = 0;
 
   constructor() {
     effect(() => {
@@ -76,11 +100,12 @@ export class PdfViewer {
 
     effect(() => {
       const t = this.target();
-      if (t && this.total()) untracked(() => this.goTo(t.page, t.quote ?? null));
+      if (t && this.total()) untracked(() => this.goTo(t.page, t.quote ?? null, !!t.quiet));
     });
 
     inject(DestroyRef).onDestroy(() => {
       this.observer?.disconnect();
+      clearTimeout(this.findTimer);
       void this.pdf?.destroy();
     });
   }
@@ -98,6 +123,9 @@ export class PdfViewer {
     this.observer?.disconnect();
     void this.pdf?.destroy();
     this.pdf = null;
+    this.settled = false;
+    this.lastEmitted = 0;
+    this.resetFind();
 
     try {
       const [pdfjs, data] = await Promise.all([loadPdfJs(), firstValueFrom(this.docs.file(id))]);
@@ -124,7 +152,8 @@ export class PdfViewer {
       afterNextRender(() => {
         this.observe();
         const t = this.target();
-        if (t) this.goTo(t.page, t.quote ?? null);
+        if (t) this.goTo(t.page, t.quote ?? null, !!t.quiet);
+        this.settled = true;
       }, { injector: this.injector });
     } catch (e) {
       if (gen !== this.generation) return;
@@ -181,17 +210,20 @@ export class PdfViewer {
       el.style.setProperty('--total-scale-factor', String(scale));
       await new this.pdfjs.TextLayer({ textContentSource: page.streamTextContent(), container: text, viewport: vp }).render();
       if (this.pendingHighlight?.page === n) this.highlight(n, this.pendingHighlight.quote);
+      if (this.pendingFind?.page === n) this.markFind(n, this.pendingFind.term);
     } catch {
       this.rendered.delete(n);
     }
   }
 
-  private goTo(page: number, quote: string | null): void {
+  private goTo(page: number, quote: string | null, quiet = false): void {
     const n = clamp(page, 1, this.total());
     const el = this.shellEl(n);
     if (!el) return;
     this.scrollToShell(el);
     this.current.set(n);
+    this.report(n);
+    if (quiet) return;
     this.pendingHighlight = { page: n, quote };
     if (this.rendered.get(n) === this.generation && el.querySelector('.textLayer span')) this.highlight(n, quote);
   }
@@ -239,7 +271,165 @@ export class PdfViewer {
         else break;
       }
       this.current.set(page);
+      this.report(page);
     });
+  }
+
+  private report(page: number): void {
+    if (!this.settled || page === this.lastEmitted) return;
+    this.lastEmitted = page;
+    this.pageChange.emit(page);
+  }
+
+  // ----- search within the PDF ------------------------------------------------
+
+  protected toggleFind(): void {
+    if (this.findOpen()) {
+      this.closeFind();
+      return;
+    }
+    this.findOpen.set(true);
+    afterNextRender(() => this.findInput()?.nativeElement.select(), { injector: this.injector });
+  }
+
+  protected closeFind(): void {
+    this.findOpen.set(false);
+    this.findTerm.set('');
+    this.clearFindResults();
+  }
+
+  protected onFindInput(value: string): void {
+    this.findTerm.set(value);
+    clearTimeout(this.findTimer);
+    this.findTimer = setTimeout(() => void this.runFind(), 250);
+  }
+
+  protected onFindKey(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.closeFind();
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      clearTimeout(this.findTimer);
+      // Enter on a fresh term searches; afterwards it steps through results.
+      if (this.findSearched() && this.findPages().length) this.stepFind(event.shiftKey ? -1 : 1);
+      else void this.runFind();
+    }
+  }
+
+  protected stepFind(delta: number): void {
+    const pages = this.findPages();
+    if (!pages.length) return;
+    const next = (this.findIndex() + delta + pages.length) % pages.length;
+    this.findIndex.set(next);
+    this.showFind(pages[next]);
+  }
+
+  private resetFind(): void {
+    clearTimeout(this.findTimer);
+    this.findRun++;
+    this.pageTexts = null;
+    this.pageTextsFor = null;
+    this.imageOnlyPages.set(0);
+    this.findBusy.set(false);
+    this.clearFindResults();
+  }
+
+  private clearFindResults(): void {
+    this.findRun++;
+    this.findPages.set([]);
+    this.findIndex.set(-1);
+    this.findSearched.set(false);
+    this.findBusy.set(false);
+    this.pendingFind = null;
+    // The scroller may not exist yet on the very first open().
+    this.scrollerEl?.querySelectorAll('.nx-find').forEach((s) => s.classList.remove('nx-find'));
+  }
+
+  private get scrollerEl(): HTMLElement | null {
+    try {
+      return this.scroller().nativeElement;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Page text from PDF.js, normalised like citation quotes; built once per opened document. */
+  private async loadPageTexts(pdf: PDFDocumentProxy): Promise<string[] | null> {
+    if (this.pageTextsFor === pdf && this.pageTexts) return this.pageTexts;
+    const texts: string[] = [];
+    for (let n = 1; n <= pdf.numPages; n++) {
+      const content = await (await pdf.getPage(n)).getTextContent();
+      if (this.pdf !== pdf) return null; // document switched while indexing
+      texts.push(norm(content.items.map((it) => ('str' in it ? it.str : '')).join(' ')));
+    }
+    this.pageTexts = texts;
+    this.pageTextsFor = pdf;
+    this.imageOnlyPages.set(texts.filter((t) => !t).length);
+    return texts;
+  }
+
+  private async runFind(): Promise<void> {
+    const term = norm(this.findTerm());
+    this.clearFindResults();
+    const pdf = this.pdf;
+    if (!term || !pdf) return;
+    const run = ++this.findRun;
+    this.findBusy.set(true);
+    try {
+      const texts = await this.loadPageTexts(pdf);
+      if (!texts || run !== this.findRun) return;
+      const pages = texts.flatMap((t, i) => (t.includes(term) ? [i + 1] : []));
+      this.findPages.set(pages);
+      this.findSearched.set(true);
+      if (pages.length) {
+        // Start from the first match at or after the page being read.
+        const from = pages.findIndex((p) => p >= this.current());
+        const index = from >= 0 ? from : 0;
+        this.findIndex.set(index);
+        this.showFind(pages[index]);
+      }
+    } catch {
+      if (run === this.findRun) this.findSearched.set(true);
+    } finally {
+      if (run === this.findRun) this.findBusy.set(false);
+    }
+  }
+
+  /** Reuses page navigation without touching citation highlights. */
+  private showFind(page: number): void {
+    const el = this.shellEl(page);
+    if (!el) return;
+    this.scrollToShell(el);
+    this.current.set(page);
+    this.report(page);
+    const term = norm(this.findTerm());
+    this.pendingFind = { page, term };
+    if (this.rendered.get(page) === this.generation && el.querySelector('.textLayer span')) this.markFind(page, term);
+  }
+
+  private markFind(n: number, term: string): void {
+    const root = this.scroller().nativeElement;
+    root.querySelectorAll('.nx-find').forEach((s) => s.classList.remove('nx-find'));
+    const el = this.shellEl(n);
+    if (!el || !term) return;
+    this.pendingFind = null;
+    let hits = 0;
+    const words = term.split(' ');
+    el.querySelectorAll<HTMLElement>('.textLayer span').forEach((span) => {
+      const t = norm(span.textContent ?? '');
+      if (!t) return;
+      // Whole term inside one span, or (for multi-word terms split across spans) a span made only of its words.
+      const match = t.includes(term) || (words.length > 1 && t.length >= 3 && term.includes(t));
+      if (match) {
+        span.classList.add('nx-find');
+        hits++;
+      }
+    });
+    if (!hits) {
+      el.classList.add('is-flash');
+      setTimeout(() => el.classList.remove('is-flash'), 1600);
+    }
   }
 
   protected step(delta: number): void {
@@ -269,6 +459,9 @@ export class PdfViewer {
       this.observe();
       const el = this.shellEl(keep);
       if (el) this.scrollToShell(el);
+      // Re-apply the current search match once its page re-renders at the new scale.
+      const page = this.findPages()[this.findIndex()];
+      if (page) this.pendingFind = { page, term: norm(this.findTerm()) };
     }, { injector: this.injector });
   }
 }

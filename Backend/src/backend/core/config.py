@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     embedding_device: str = "auto"
     embedding_batch_size: int = Field(default=4, gt=0)
     embedding_max_seq_length: int = Field(default=1024, gt=0)
+    # CPU only. fp32 is fastest on CPUs without native bf16 (most of them); bf16 is opt-in.
+    embedding_cpu_dtype: str = "fp32"
+    # CPU only. 0 = measure the fastest thread count once per machine and cache it.
+    embedding_cpu_threads: int = Field(default=0, ge=0)
 
     chunk_size: int = Field(default=1800, gt=100)
     chunk_overlap: int = Field(default=200, ge=0)
@@ -66,6 +70,8 @@ class Settings(BaseSettings):
             raise ValueError("CHUNK_OVERLAP must be smaller than CHUNK_SIZE")
         if self.embedding_device not in {"auto", "cuda", "cpu"}:
             raise ValueError("EMBEDDING_DEVICE must be one of: auto, cuda, cpu")
+        if self.embedding_cpu_dtype not in {"fp32", "bf16"}:
+            raise ValueError("EMBEDDING_CPU_DTYPE must be one of: fp32, bf16")
         return self
 
 
