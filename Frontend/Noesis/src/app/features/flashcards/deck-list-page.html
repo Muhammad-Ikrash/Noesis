@@ -1,0 +1,93 @@
+<div class="page">
+  <section class="intro">
+    <p class="eyebrow">Flashcards</p>
+    <h1>Remember <em>what matters.</em></h1>
+    <p class="lede">Cards are written only from your PDFs. Flip them, mark what you know, and come back to the rest.</p>
+  </section>
+
+  <div class="grid">
+    <form class="maker panel" (submit)="$event.preventDefault(); generate()" aria-labelledby="maker-h">
+      <h2 id="maker-h">New deck</h2>
+
+      <fieldset>
+        <legend>From these PDFs</legend>
+        @if (!library().length) {
+          <p class="muted small">No processed PDFs yet. <a routerLink="/library">Upload one</a> first.</p>
+        } @else {
+          <ul class="docs">
+            @for (d of library(); track d.id) {
+              <li>
+                <label [class.is-on]="picked().has(d.id)">
+                  <input type="checkbox" [checked]="picked().has(d.id)" (change)="toggle(d.id)" />
+                  <span>{{ d.filename }}</span>
+                </label>
+              </li>
+            }
+          </ul>
+        }
+      </fieldset>
+
+      <label class="field">
+        <span>Topic <span class="muted">(optional)</span></span>
+        <input class="input" name="topic" [ngModel]="topic()" (ngModelChange)="topic.set($event)"
+               placeholder="e.g. key terms in chapter 3" maxlength="500" />
+      </label>
+
+      <label class="field">
+        <span>Cards: <strong class="mono">{{ count() }}</strong></span>
+        <input type="range" name="count" min="5" max="30" step="1" [ngModel]="count()" (ngModelChange)="count.set(+$event)" />
+      </label>
+
+      @if (genError()) { <div class="alert" role="alert"><div>{{ genError() }}</div></div> }
+
+      <button class="btn btn--primary" type="submit" [disabled]="!canGenerate()">
+        @if (generating()) { <span class="spinner"></span> Writing cards… } @else { <app-icon name="cards" [size]="16" /> Make flashcards }
+      </button>
+      @if (generating()) { <p class="muted small">This takes a few seconds while Noesis reads the passages.</p> }
+    </form>
+
+    <section aria-labelledby="decks-h">
+      <div class="list-head"><h2 id="decks-h">Your decks</h2></div>
+      @if (loading()) {
+        @for (i of [1, 2, 3]; track i) { <div class="skeleton" style="height: 64px; margin-top: 12px"></div> }
+      } @else if (error()) {
+        <div class="alert" role="alert">
+          <div>{{ error() }}</div>
+          <button class="btn btn--sm" type="button" (click)="load()">Retry</button>
+        </div>
+      } @else if (!decks().length) {
+        <div class="empty">
+          <app-icon name="cards" [size]="28" />
+          <h3>No flashcards yet</h3>
+          <p>Choose some PDFs and make your first deck. Your progress is saved card by card.</p>
+        </div>
+      } @else {
+        <ul class="decks">
+          @for (d of decks(); track d.id) {
+            <li>
+              <div class="d__main">
+                <a [routerLink]="['/flashcards', d.id]" class="d__title">{{ d.title }}</a>
+                <span class="mono muted">{{ d.card_count }} cards · {{ ago(d.created_at) }}
+                  @if (d.last_studied_at) { · studied {{ ago(d.last_studied_at) }} }</span>
+                <span class="meter" role="img" [attr.aria-label]="d.known_count + ' of ' + d.card_count + ' known'">
+                  <span [style.width.%]="pct(d)" [class.is-done]="d.known_count === d.card_count"></span>
+                </span>
+              </div>
+              <span class="known" [class.is-good]="d.known_count === d.card_count" [title]="'Known: ' + d.known_count + '/' + d.card_count">
+                {{ d.known_count }}<span>/{{ d.card_count }}</span>
+              </span>
+              <a class="btn btn--sm" [routerLink]="['/flashcards', d.id]">{{ d.last_studied_at ? 'Continue' : 'Study' }}</a>
+              <button class="btn btn--quiet btn--icon btn--sm" type="button" (click)="toDelete.set(d)" [attr.aria-label]="'Delete ' + d.title">
+                <app-icon name="trash" [size]="15" />
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  </div>
+</div>
+
+<app-confirm-dialog [open]="!!toDelete()" title="Delete this deck?" confirmLabel="Delete" [danger]="true" [busy]="deleting()"
+                    [message]="'“' + (toDelete()?.title ?? '') + '” and its study progress will be removed.'"
+                    (confirmed)="confirmDelete()" (cancelled)="toDelete.set(null)" />

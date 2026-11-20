@@ -194,6 +194,10 @@ export class LibraryPage {
     this.router.navigate(['/quizzes'], { queryParams: { docs: ids.join(',') } });
   }
 
+  protected flashcards(ids: string[]): void {
+    this.router.navigate(['/flashcards'], { queryParams: { docs: ids.join(',') } });
+  }
+
   protected confirmDelete(): void {
     const doc = this.toDelete();
     if (!doc) return;

@@ -40,6 +40,16 @@ export const routes: Routes = [
         loadComponent: () => import('./features/quiz/quiz-runner-page').then((m) => m.QuizRunnerPage),
       },
       {
+        path: 'flashcards',
+        title: 'Flashcards · Noesis',
+        loadComponent: () => import('./features/flashcards/deck-list-page').then((m) => m.DeckListPage),
+      },
+      {
+        path: 'flashcards/:deckId',
+        title: 'Flashcards · Noesis',
+        loadComponent: () => import('./features/flashcards/deck-study-page').then((m) => m.DeckStudyPage),
+      },
+      {
         path: 'quizzes/:quizId/attempts/:attemptId',
         title: 'Quiz results Â· Noesis',
         loadComponent: () => import('./features/quiz/quiz-result-page').then((m) => m.QuizResultPage),

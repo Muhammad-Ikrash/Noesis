@@ -8,6 +8,7 @@ import {
 import { apiErrorMessage } from '../../core/http/api-error';
 import { ConversationsService } from '../../core/services/conversations.service';
 import { DocumentsService } from '../../core/services/documents.service';
+import { FlashcardService } from '../../core/services/flashcard.service';
 import { QuizService } from '../../core/services/quiz.service';
 import { ToastService } from '../../core/services/toast.service';
 import { exportFilename, sessionToMarkdown } from '../../shared/answer-text';
@@ -48,6 +49,7 @@ export class WorkspacePage {
   private readonly convApi = inject(ConversationsService);
   private readonly docsApi = inject(DocumentsService);
   private readonly quizApi = inject(QuizService);
+  private readonly cardsApi = inject(FlashcardService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   private readonly thread = viewChild<ElementRef<HTMLElement>>('thread');
@@ -90,6 +92,7 @@ export class WorkspacePage {
   protected readonly deleteOpen = signal(false);
   protected readonly deleting = signal(false);
   protected readonly quizBusy = signal(false);
+  protected readonly cardsBusy = signal(false);
 
   // Start screen (no conversation selected)
   protected readonly library = signal<DocumentOut[]>([]);
@@ -354,6 +357,24 @@ export class WorkspacePage {
       error: (e) => {
         this.quizBusy.set(false);
         this.toast.error(apiErrorMessage(e, 'Could not generate a quiz.'));
+      },
+    });
+  }
+
+  protected cardsMe(): void {
+    const conv = this.detail();
+    if (!conv) return;
+    if (!conv.documents.some((d) => d.status === 'completed')) {
+      this.toast.info('Attach at least one PDF to this chat to make flashcards.');
+      this.attachOpen.set(true);
+      return;
+    }
+    this.cardsBusy.set(true);
+    this.cardsApi.create({ conversation_id: conv.id, card_count: 12 }).subscribe({
+      next: (d) => this.router.navigate(['/flashcards', d.id]),
+      error: (e) => {
+        this.cardsBusy.set(false);
+        this.toast.error(apiErrorMessage(e, 'Could not make flashcards.'));
       },
     });
   }

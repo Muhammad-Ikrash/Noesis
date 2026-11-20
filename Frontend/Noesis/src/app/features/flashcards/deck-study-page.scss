@@ -1,0 +1,79 @@
+// Matches the quiz runner: same column width, header, card surface and footer rhythm.
+.page { width: min(760px, 100%); margin: 0 auto; padding: var(--space-6) var(--space-5) var(--space-8); }
+.head { display: flex; align-items: center; gap: var(--space-4); margin-bottom: var(--space-5); .eyebrow { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
+
+.progress {
+  display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4);
+  .mono { font-size: var(--text-xs); white-space: nowrap; }
+}
+.meter {
+  flex: 1; display: block; height: 4px; border-radius: 2px; background: var(--rule); overflow: hidden;
+  span { display: block; height: 100%; background: var(--pen); transition: width .3s var(--ease); &.is-done { background: var(--ok); } }
+}
+
+.tools {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-bottom: var(--space-5);
+  .spacer { flex: 1; }
+  .seg .mono { margin-left: 4px; color: var(--ink-3); }
+  .is-on { color: var(--pen); }
+}
+
+.count { margin-bottom: var(--space-3); font-size: var(--text-xs); .ok { color: var(--ok); } }
+
+// 3D flip. Both faces share one grid cell so the card grows to fit the longer side.
+.flip { perspective: 1600px; }
+.flip__inner {
+  display: grid; transform-style: preserve-3d; transition: transform .45s var(--ease);
+  animation: rise .2s var(--ease);
+}
+.flip.is-flipped .flip__inner { transform: rotateY(180deg); }
+.face {
+  grid-area: 1 / 1; display: flex; flex-direction: column; gap: var(--space-3);
+  min-height: 280px; padding: var(--space-6);
+  border: 1px solid var(--rule); border-radius: var(--radius); background: var(--surface);
+  backface-visibility: hidden; -webkit-backface-visibility: hidden; cursor: pointer;
+  &:hover { border-color: var(--rule-strong); }
+}
+.face--back { transform: rotateY(180deg); background: var(--paper); border-color: var(--rule-strong); }
+.face__label { font-size: var(--text-xs); letter-spacing: .08em; text-transform: uppercase; color: var(--pen); }
+.face__text {
+  flex: 1; display: flex; align-items: center; margin: 0;
+  font-family: var(--font-read); font-size: var(--text-xl); line-height: 1.3; font-weight: 400;
+  white-space: pre-line;
+}
+.face__text--answer { font-size: var(--text-lg); line-height: 1.5; color: var(--ink); }
+.face__hint, .face__source { font-size: var(--text-xs); }
+.face__source {
+  a, span { display: inline-flex; align-items: center; gap: 6px; }
+  a { color: var(--ink-2); text-decoration: none; &:hover { color: var(--pen); text-decoration: underline; } }
+}
+
+.actions {
+  display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-5);
+  .grow { flex: 1; justify-content: center; }
+}
+.hint { margin-top: var(--space-4); font-size: 11px; text-align: center; }
+
+.done {
+  display: grid; justify-items: center; gap: var(--space-3); padding: var(--space-7) var(--space-5); text-align: center;
+  animation: rise .2s var(--ease);
+  > app-icon { color: var(--ok); }
+  h2 { font-size: var(--text-xl); }
+}
+.tally {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-4); font-size: var(--text-sm); color: var(--ink-2);
+  strong { font-family: var(--font-read); font-size: var(--text-xl); font-weight: 400; color: var(--ink); margin-right: 4px; }
+  .is-good strong { color: var(--ok); }
+}
+.done__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); margin-top: var(--space-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .flip__inner { transition: none; }
+}
+@media (max-width: 560px) {
+  .page { padding: var(--space-4) var(--space-3) var(--space-7); }
+  .face { min-height: 220px; padding: var(--space-4); }
+  .face__text { font-size: var(--text-lg); }
+  .face__text--answer { font-size: var(--text-read); }
+  .hint { display: none; }
+}
