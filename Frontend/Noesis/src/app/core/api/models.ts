@@ -184,3 +184,42 @@ export interface AttemptResult {
   created_at: string;
   questions: QuizQuestionReview[];
 }
+
+export interface DeckCreate {
+  document_ids?: string[];
+  conversation_id?: string;
+  topic?: string;
+  card_count: number;
+}
+
+export interface Flashcard {
+  id: string;
+  position: number;
+  front: string;
+  back: string;
+  known: boolean;
+  reviewed_at: string | null;
+  document_id: string | null;
+  filename: string;
+  page_number: number;
+}
+
+export interface DeckSummary {
+  id: string;
+  title: string;
+  topic: string | null;
+  conversation_id: string | null;
+  card_count: number;
+  known_count: number;
+  last_studied_at: string | null;
+  created_at: string;
+}
+
+export interface Deck {
+  id: string;
+  title: string;
+  topic: string | null;
+  conversation_id: string | null;
+  created_at: string;
+  cards: Flashcard[];
+}

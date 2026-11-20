@@ -1,0 +1,114 @@
+<div class="page">
+  @if (loading()) {
+    <div class="skeleton" style="height: 28px; width: 50%"></div>
+    <div class="skeleton" style="height: 280px; margin-top: 24px"></div>
+  } @else if (error()) {
+    <div class="alert" role="alert"><div>{{ error() }}</div><button class="btn btn--sm" type="button" (click)="load()">Retry</button></div>
+    <a class="btn btn--quiet" routerLink="/flashcards">Back to flashcards</a>
+  } @else if (deck(); as d) {
+    <header class="head">
+      <a class="btn btn--quiet btn--sm" routerLink="/flashcards"><app-icon name="left" [size]="14" />Flashcards</a>
+      <p class="eyebrow">{{ d.title }}</p>
+    </header>
+
+    <div class="progress">
+      <span class="meter" role="img" [attr.aria-label]="knownCount() + ' of ' + total() + ' cards known'">
+        <span [style.width.%]="knownPct()" [class.is-done]="knownCount() === total()"></span>
+      </span>
+      <span class="mono muted">{{ knownCount() }}/{{ total() }} known</span>
+    </div>
+
+    <div class="tools">
+      <div class="seg" role="group" aria-label="Which cards to study">
+        <button type="button" [attr.aria-pressed]="filter() === 'all'" (click)="start('all')">All <span class="mono">{{ total() }}</span></button>
+        <button type="button" [attr.aria-pressed]="filter() === 'learning'" (click)="start('learning')">
+          Still learning <span class="mono">{{ learningCount() }}</span>
+        </button>
+      </div>
+      <span class="spacer"></span>
+      <button class="btn btn--quiet btn--sm" type="button" (click)="toggleShuffle()" [attr.aria-pressed]="shuffled()" [class.is-on]="shuffled()"
+              title="Shuffle the order">
+        <app-icon name="refresh" [size]="14" />Shuffle
+      </button>
+      <button class="btn btn--quiet btn--sm" type="button" (click)="resetOpen.set(true)" [disabled]="!knownCount()">Reset progress</button>
+    </div>
+
+    @if (!order().length) {
+      <section class="done panel">
+        <app-icon name="check" [size]="28" />
+        <h2>You know every card in this deck.</h2>
+        <p class="muted">Study them all again to keep them fresh, or reset to start over.</p>
+        <div class="done__actions">
+          <button class="btn btn--primary" type="button" (click)="start('all')">Study all again</button>
+          <a class="btn" routerLink="/flashcards">All decks</a>
+        </div>
+      </section>
+    } @else if (finished()) {
+      <section class="done panel" aria-live="polite">
+        <app-icon name="check" [size]="28" />
+        <h2>Run complete</h2>
+        <p class="tally">
+          <span class="is-good"><strong>{{ gotIt() }}</strong> got it</span>
+          <span><strong>{{ stillLearning() }}</strong> still learning</span>
+          @if (order().length - gotIt() - stillLearning(); as skipped) { <span class="muted"><strong>{{ skipped }}</strong> skipped</span> }
+        </p>
+        <div class="done__actions">
+          @if (learningCount()) {
+            <button class="btn btn--primary" type="button" (click)="start('learning')">
+              Study the {{ learningCount() }} still learning
+            </button>
+          }
+          <button class="btn" [class.btn--primary]="!learningCount()" type="button" (click)="start('all')">Study all again</button>
+          <a class="btn btn--quiet" routerLink="/flashcards">All decks</a>
+        </div>
+      </section>
+    } @else if (current(); as c) {
+      <p class="count mono muted">Card {{ pos() + 1 }} of {{ order().length }}
+        @if (c.known) { · <span class="ok">known</span> }</p>
+
+      <div class="flip" [class.is-flipped]="flipped()">
+        <div class="flip__inner">
+          <section class="face face--front" [attr.aria-hidden]="flipped()" (click)="flip()">
+            <p class="face__label mono">Question</p>
+            <h2 class="face__text">{{ c.front }}</h2>
+            <p class="face__hint mono muted">Click or press Space to show the answer</p>
+          </section>
+          <section class="face face--back" [attr.aria-hidden]="!flipped()" (click)="flip()" aria-live="polite">
+            <p class="face__label mono">Answer</p>
+            <p class="face__text face__text--answer">{{ c.back }}</p>
+            <p class="face__source mono muted">
+              @if (c.document_id) {
+                <a [routerLink]="['/read', c.document_id]" [queryParams]="{ page: c.page_number }" (click)="$event.stopPropagation()"
+                   [attr.tabindex]="flipped() ? null : -1">
+                  <app-icon name="file" [size]="12" />{{ c.filename }}, p. {{ c.page_number }}
+                </a>
+              } @else {
+                <span><app-icon name="file" [size]="12" />{{ c.filename }}, p. {{ c.page_number }} (deleted)</span>
+              }
+            </p>
+          </section>
+        </div>
+      </div>
+
+      <footer class="actions">
+        <button class="btn btn--quiet btn--icon" type="button" (click)="move(-1)" [disabled]="pos() === 0" aria-label="Previous card">
+          <app-icon name="left" [size]="16" />
+        </button>
+        @if (!flipped()) {
+          <button class="btn btn--primary grow" type="button" (click)="flip()">Show answer</button>
+        } @else {
+          <button class="btn grow" type="button" (click)="mark(false)">Still learning</button>
+          <button class="btn btn--primary grow" type="button" (click)="mark(true)"><app-icon name="check" [size]="14" />Got it</button>
+        }
+        <button class="btn btn--quiet btn--icon" type="button" (click)="move(1)" aria-label="Skip to next card">
+          <app-icon name="right" [size]="16" />
+        </button>
+      </footer>
+      <p class="hint mono muted">Keys: Space to flip · 1 still learning · 2 got it · ← → to move</p>
+    }
+  }
+</div>
+
+<app-confirm-dialog [open]="resetOpen()" title="Reset progress for this deck?" confirmLabel="Reset" [busy]="resetting()"
+                    message="Every card goes back to “still learning”. The cards themselves are kept."
+                    (confirmed)="reset()" (cancelled)="resetOpen.set(false)" />

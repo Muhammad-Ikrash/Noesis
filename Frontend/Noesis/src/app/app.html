@@ -14,6 +14,9 @@
     <a routerLink="/quizzes" routerLinkActive="is-active">
       <app-icon name="quiz" [size]="16" /><span>Quizzes</span>
     </a>
+    <a routerLink="/flashcards" routerLinkActive="is-active">
+      <app-icon name="cards" [size]="16" /><span>Flashcards</span>
+    </a>
   </nav>
   <button class="btn btn--quiet btn--icon" type="button" (click)="theme.cycle()"
           [attr.aria-label]="'Theme: ' + theme.theme() + '. Click to change.'"
