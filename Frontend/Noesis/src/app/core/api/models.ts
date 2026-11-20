@@ -223,3 +223,76 @@ export interface Deck {
   created_at: string;
   cards: Flashcard[];
 }
+
+export interface SlideDeckCreate {
+  document_ids?: string[];
+  conversation_id?: string;
+  topic?: string;
+  slide_count: number;
+}
+
+export interface SlideSource {
+  document_id: string | null;
+  filename: string;
+  page_number: number;
+}
+
+export interface Slide {
+  id: string;
+  position: number;
+  title: string;
+  bullets: string[];
+  notes: string;
+  sources: SlideSource[];
+}
+
+export interface SlideDeckSummary {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  topic: string | null;
+  conversation_id: string | null;
+  slide_count: number;
+  filenames: string[];
+  created_at: string;
+}
+
+export type SlideTheme = 'auto' | 'paper' | 'ink' | 'slate' | 'forest' | 'midnight';
+export type SlideFont = 'serif' | 'sans' | 'mono';
+
+export interface SlideDesign {
+  theme: SlideTheme;
+  accent: string | null;
+  heading_font: SlideFont;
+  body_font: SlideFont;
+  align: 'left' | 'center';
+  bullets: 'dot' | 'dash' | 'number' | 'none';
+  show_numbers: boolean;
+  show_sources: boolean;
+}
+
+export interface SlideDeck {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  topic: string | null;
+  conversation_id: string | null;
+  created_at: string;
+  design: SlideDesign;
+  slides: Slide[];
+}
+
+export interface SlideDeckUpdate {
+  title?: string;
+  subtitle?: string | null;
+  design?: SlideDesign;
+}
+
+export interface SlideEdit {
+  id: string;
+  title: string;
+  bullets: string[];
+  notes: string;
+  /** Only sent when restoring a snapshot (undo). */
+  sources?: SlideSource[];
+}

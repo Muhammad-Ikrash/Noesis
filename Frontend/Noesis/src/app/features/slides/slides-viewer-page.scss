@@ -1,0 +1,162 @@
+// Same header and surfaces as the quiz runner and flashcard study pages, a little wider for 16:9.
+.page { width: min(1040px, 100%); margin: 0 auto; padding: var(--space-6) var(--space-5) var(--space-8); }
+.page.is-wide { width: min(1340px, 100%); }
+.head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin-bottom: var(--space-5);
+  .eyebrow { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .spacer { flex: 1; }
+  .is-on { color: var(--pen); background: var(--pen-soft); }
+}
+.save {
+  display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-xs); white-space: nowrap;
+  .save__err { color: var(--danger); }
+}
+.revised {
+  display: flex; align-items: center; gap: 6px; margin: calc(-1 * var(--space-3)) 0 var(--space-4); font-size: var(--text-xs);
+  app-icon { color: var(--pen); }
+}
+.linkish {
+  border: 0; padding: 0; background: none; font: inherit; color: var(--pen); cursor: pointer;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+
+.work { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-5); align-items: start; }
+.work.has-panel { grid-template-columns: minmax(0, 1fr) 320px; }
+.main { min-width: 0; }
+
+// ---- The slide ---------------------------------------------------------------
+// Colours and fonts come from the deck's design (--s-*); the "App" theme falls back to the
+// app's own tokens, so it follows light/dark mode. Sizes use container units so the slide
+// scales the same inline and when presenting.
+.stage {
+  --s-paper: var(--s-bg, var(--surface));
+  --s-text: var(--s-ink, var(--ink));
+  --s-text-2: color-mix(in srgb, var(--s-text) 75%, var(--s-paper));
+  --s-muted: color-mix(in srgb, var(--s-text) 55%, var(--s-paper));
+  --s-pen: var(--s-accent, var(--pen));
+  position: relative; container-type: inline-size; aspect-ratio: 16 / 9; overflow: hidden;
+  border: 1px solid var(--rule); border-radius: var(--radius); background: var(--s-paper);
+  box-shadow: 0 1px 0 #0000000a, 0 12px 32px -20px #00000059;
+  transition: background .2s;
+  &:focus { outline: none; }
+}
+
+// Present mode covers the window (and the screen, when full screen is granted). The slide
+// keeps 16:9 and measures its own text, so it scales to whatever space it gets.
+.stage.is-presenting {
+  position: fixed; inset: 0; z-index: 1000; width: 100vw; height: 100vh; aspect-ratio: auto;
+  container-type: normal; border: 0; border-radius: 0; box-shadow: none; cursor: pointer;
+  display: grid; place-items: center; background: var(--s-bg, var(--paper));
+  .slide { width: min(100vw, calc(100vh * 16 / 9)); height: auto; aspect-ratio: 16 / 9; }
+}
+.stage__exit { position: absolute; top: 12px; right: 12px; opacity: .6; &:hover, &:focus-visible { opacity: 1; } }
+
+.slide {
+  container-type: inline-size; position: relative; display: flex; flex-direction: column;
+  height: 100%; padding: 6.5cqw 7cqw 5cqw; color: var(--s-text); animation: rise .2s var(--ease);
+}
+.slide__num {
+  position: absolute; top: 3.4cqw; right: 7cqw; margin: 0;
+  font-family: var(--font-mono); font-size: 1.05cqw; color: var(--s-muted);
+}
+.slide__title {
+  margin: 0; font-family: var(--s-head, var(--font-read)); font-weight: 500; font-size: 3.6cqw; line-height: 1.15;
+  color: var(--s-text); max-width: 90%;
+}
+.slide__rule { display: block; flex: none; width: 6cqw; height: .3cqw; margin: 2cqw 0 2.6cqw; background: var(--s-pen); border-radius: 1px; }
+.slide__bullets {
+  counter-reset: bullet; margin: 0; padding: 0; list-style: none; display: grid; gap: 1.6cqw; align-content: start;
+  flex: 1; min-height: 0; font-family: var(--s-body, var(--font-ui)); font-size: 2.05cqw; line-height: 1.4; color: var(--s-text);
+  li { position: relative; padding-left: 2.6cqw; counter-increment: bullet; }
+  li::before {
+    content: ''; position: absolute; left: .3cqw; top: .62em; width: .8cqw; height: .8cqw;
+    border-radius: 50%; background: var(--s-pen);
+  }
+  &.is-dense { gap: 1.1cqw; font-size: 1.8cqw; }
+}
+.bullets-dash .slide__bullets li::before {
+  content: '–'; top: 0; width: auto; height: auto; border-radius: 0; background: none; color: var(--s-pen);
+}
+.bullets-number .slide__bullets li { padding-left: 3.4cqw; }
+.bullets-number .slide__bullets li::before {
+  content: counter(bullet) '.'; top: 0; left: 0; width: auto; height: auto; border-radius: 0; background: none;
+  color: var(--s-pen); font-family: var(--font-mono); font-size: .85em; line-height: 1.65;
+}
+.bullets-none .slide__bullets li { padding-left: 0; &::before { display: none; } }
+
+.slide__source {
+  margin: 1.5cqw 0 0; font-family: var(--font-mono); font-size: 1.05cqw; color: var(--s-muted);
+  a { color: var(--s-text-2); &:hover { color: var(--s-pen); } }
+}
+
+.slide--title { justify-content: center; padding-top: 0; }
+.slide__eyebrow {
+  margin: 0 0 1.6cqw; font-family: var(--font-mono); font-size: 1.1cqw; letter-spacing: .12em; text-transform: uppercase; color: var(--s-pen);
+}
+.slide__deck-title {
+  margin: 0; font-family: var(--s-head, var(--font-read)); font-weight: 500; font-size: 5.2cqw; line-height: 1.08;
+  color: var(--s-text); max-width: 85%;
+}
+.slide--title .slide__rule { width: 9cqw; margin: 3cqw 0; }
+.slide__subtitle {
+  margin: 0; font-family: var(--s-head, var(--font-read)); font-size: 2cqw; line-height: 1.4; color: var(--s-text-2); max-width: 75%;
+}
+.slide__from { position: absolute; left: 7cqw; right: 7cqw; bottom: 4.5cqw; margin: 0; font-family: var(--font-mono); font-size: 1.05cqw; color: var(--s-muted); }
+
+// Centred layout: text, rule and the bullet list all sit on the middle line.
+.align-center {
+  .slide { text-align: center; align-items: center; }
+  .slide__title, .slide__deck-title, .slide__subtitle { margin-left: auto; margin-right: auto; }
+  .slide__rule { margin-left: auto; margin-right: auto; }
+  .slide__bullets { justify-items: center; }
+  .slide__num { right: 7cqw; }
+}
+
+.stage__hint {
+  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); margin: 0;
+  font-family: var(--font-mono); font-size: 11px; color: var(--s-muted); opacity: .7; pointer-events: none;
+}
+
+// ---- Around the slide ----------------------------------------------------------
+.controls {
+  display: flex; align-items: center; justify-content: center; gap: var(--space-4); margin-top: var(--space-4);
+  .mono { font-size: var(--text-xs); min-width: 104px; text-align: center; }
+}
+
+.strip {
+  display: flex; gap: var(--space-2); overflow-x: auto; margin-top: var(--space-4); padding: 2px 2px var(--space-2);
+  scroll-snap-type: x proximity;
+}
+.thumb {
+  flex: none; width: 150px; aspect-ratio: 16 / 9; display: flex; flex-direction: column; gap: 4px; padding: var(--space-2);
+  border: 1px solid var(--rule); border-radius: var(--radius-sm); background: var(--surface);
+  text-align: left; cursor: pointer; scroll-snap-align: start; transition: border-color .12s, box-shadow .12s;
+  &:hover { border-color: var(--rule-strong); }
+  &.is-current { border-color: var(--pen); box-shadow: 0 0 0 1px var(--pen); }
+}
+.thumb__num { font-size: 10px; color: var(--ink-3); }
+.is-current .thumb__num { color: var(--pen); }
+.thumb__title {
+  font-family: var(--font-read); font-size: var(--text-xs); line-height: 1.3; color: var(--ink);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.thumb--add {
+  align-items: center; justify-content: center; border-style: dashed; color: var(--ink-2); font-size: var(--text-xs);
+  &:hover { color: var(--pen); border-color: var(--pen); }
+}
+
+.notes {
+  margin-top: var(--space-4); padding: var(--space-4) var(--space-5);
+  h3 { margin-bottom: var(--space-2); }
+  p { margin: 0; font-family: var(--font-read); font-size: var(--text-read); line-height: 1.55; color: var(--ink-2); }
+}
+.hint { margin-top: var(--space-4); font-size: 11px; text-align: center; }
+
+@media (prefers-reduced-motion: reduce) { .slide { animation: none; } .stage { transition: none; } }
+@media (max-width: 1000px) { .work.has-panel { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) {
+  .page { padding: var(--space-4) var(--space-3) var(--space-7); }
+  .thumb { width: 120px; }
+  .hint { display: none; }
+  .hide-sm { display: none; }
+}

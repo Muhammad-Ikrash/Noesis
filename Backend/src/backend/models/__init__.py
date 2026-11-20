@@ -4,6 +4,7 @@ from backend.models.document_chunk import EMBEDDING_DIMENSION, DocumentChunk
 from backend.models.flashcard import Flashcard, FlashcardDeck
 from backend.models.message import Message, MessageSource
 from backend.models.quiz import Quiz, QuizAttempt, QuizQuestion
+from backend.models.slides import Slide, SlideDeck
 from backend.models.user import User
 
 __all__ = [
@@ -19,6 +20,8 @@ __all__ = [
     "Quiz",
     "QuizAttempt",
     "QuizQuestion",
+    "Slide",
+    "SlideDeck",
     "User",
     "conversation_documents",
 ]

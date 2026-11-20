@@ -41,13 +41,23 @@ export const routes: Routes = [
       },
       {
         path: 'flashcards',
-        title: 'Flashcards � Noesis',
+        title: 'Flashcards · Noesis',
         loadComponent: () => import('./features/flashcards/deck-list-page').then((m) => m.DeckListPage),
       },
       {
         path: 'flashcards/:deckId',
-        title: 'Flashcards � Noesis',
+        title: 'Flashcards · Noesis',
         loadComponent: () => import('./features/flashcards/deck-study-page').then((m) => m.DeckStudyPage),
+      },
+      {
+        path: 'slides',
+        title: 'Slides · Noesis',
+        loadComponent: () => import('./features/slides/slides-list-page').then((m) => m.SlidesListPage),
+      },
+      {
+        path: 'slides/:deckId',
+        title: 'Slides · Noesis',
+        loadComponent: () => import('./features/slides/slides-viewer-page').then((m) => m.SlidesViewerPage),
       },
       {
         path: 'quizzes/:quizId/attempts/:attemptId',

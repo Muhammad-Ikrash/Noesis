@@ -6,7 +6,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from backend.api.dependencies import get_ingestor, get_storage
-from backend.api.routes import chat, conversations, documents, flashcards, quizzes
+from backend.api.routes import (
+    chat,
+    conversations,
+    documents,
+    flashcards,
+    quizzes,
+    slides,
+)
 from backend.api.routes import settings as settings_routes
 from backend.core.config import get_settings
 from backend.core.logging import configure_logging
@@ -73,6 +80,7 @@ def create_app(*, run_lifespan: bool = True) -> FastAPI:
         chat,
         quizzes,
         flashcards,
+        slides,
         settings_routes,
     ):
         app.include_router(module.router, prefix="/api/v1")

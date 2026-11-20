@@ -129,6 +129,9 @@
           <button class="btn btn--sm" type="button" (click)="flashcards(selectedIds())">
             <app-icon name="cards" [size]="14" />Flashcards
           </button>
+          <button class="btn btn--sm" type="button" (click)="slides(selectedIds())">
+            <app-icon name="slides" [size]="14" />Slides
+          </button>
           <button class="btn btn--primary btn--sm" type="button" (click)="study(selectedIds())" [disabled]="starting()">
             @if (starting()) { <span class="spinner"></span> } @else { <app-icon name="book" [size]="14" /> }
             Study together
