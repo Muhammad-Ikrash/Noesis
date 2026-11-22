@@ -3,6 +3,11 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.models.enums import QuestionKind, QuizDifficulty
+
+# Answer to one question: an option index, a list of indexes (multiple choice), or null = skipped.
+Answer = int | list[int] | None
+
 
 class QuizCreate(BaseModel):
     # Either explicit documents, or a conversation whose attached PDFs are used.
@@ -10,6 +15,11 @@ class QuizCreate(BaseModel):
     conversation_id: uuid.UUID | None = None
     topic: str | None = Field(default=None, max_length=500)
     question_count: int = Field(default=5, ge=1, le=15)
+    difficulty: QuizDifficulty = QuizDifficulty.MEDIUM
+    # Kinds the quiz may mix; at least one.
+    question_types: list[QuestionKind] = Field(
+        default_factory=lambda: [QuestionKind.SINGLE], min_length=1, max_length=3
+    )
 
 
 class QuestionOut(BaseModel):
@@ -19,6 +29,7 @@ class QuestionOut(BaseModel):
 
     id: uuid.UUID
     position: int
+    kind: QuestionKind
     prompt: str
     options: list[str]
     filename: str
@@ -26,6 +37,7 @@ class QuestionOut(BaseModel):
 
 
 class QuestionReview(QuestionOut):
+    correct_indices: list[int]
     correct_index: int
     explanation: str
     document_id: uuid.UUID | None
@@ -45,6 +57,7 @@ class QuizSummary(BaseModel):
     id: uuid.UUID
     title: str
     topic: str | None
+    difficulty: QuizDifficulty
     conversation_id: uuid.UUID | None
     question_count: int
     best_score: int | None
@@ -56,6 +69,7 @@ class QuizOut(BaseModel):
     id: uuid.UUID
     title: str
     topic: str | None
+    difficulty: QuizDifficulty
     conversation_id: uuid.UUID | None
     created_at: datetime
     questions: list[QuestionOut]
@@ -63,7 +77,7 @@ class QuizOut(BaseModel):
 
 
 class AttemptCreate(BaseModel):
-    answers: list[int | None] = Field(max_length=15)
+    answers: list[Answer] = Field(max_length=15)
 
 
 class AttemptResult(BaseModel):
@@ -71,6 +85,6 @@ class AttemptResult(BaseModel):
     quiz_id: uuid.UUID
     score: int
     total: int
-    answers: list[int | None]
+    answers: list[Answer]
     created_at: datetime
     questions: list[QuestionReview]

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { DocumentOut, QuizSummary } from '../../core/api/models';
+import { DocumentOut, QuestionKind, QuizDifficulty, QuizSummary } from '../../core/api/models';
 import { apiErrorMessage } from '../../core/http/api-error';
 import { DocumentsService } from '../../core/services/documents.service';
 import { QuizService } from '../../core/services/quiz.service';
@@ -9,6 +9,20 @@ import { ToastService } from '../../core/services/toast.service';
 import { relativeTime } from '../../shared/format';
 import { ConfirmDialog } from '../../shared/ui/confirm-dialog';
 import { Icon } from '../../shared/ui/icon';
+
+const DIFFICULTIES: { value: QuizDifficulty; label: string; hint: string }[] = [
+  { value: 'easy', label: 'Easy', hint: 'Key facts and definitions' },
+  { value: 'medium', label: 'Medium', hint: 'Understanding: why and how' },
+  { value: 'hard', label: 'Hard', hint: 'Reasoning, edge cases, common misconceptions' },
+];
+
+const DIFFICULTY_LABEL: Record<QuizDifficulty, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
+
+const KIND_OPTIONS: { value: QuestionKind; label: string; hint: string }[] = [
+  { value: 'single', label: 'Single choice', hint: 'One correct answer of four' },
+  { value: 'multiple', label: 'Multiple choice', hint: 'Select all that apply' },
+  { value: 'true_false', label: 'True / false', hint: 'Is the statement right?' },
+];
 
 @Component({
   selector: 'app-quiz-list-page',
@@ -35,13 +49,23 @@ export class QuizListPage {
   protected readonly picked = signal<Set<string>>(new Set());
   protected readonly topic = signal('');
   protected readonly count = signal(5);
+  protected readonly difficulty = signal<QuizDifficulty>('medium');
+  protected readonly kinds = signal<Set<QuestionKind>>(new Set(['single']));
+  protected readonly difficulties = DIFFICULTIES;
+  protected readonly kindOptions = KIND_OPTIONS;
+  protected readonly difficultyLabel = DIFFICULTY_LABEL;
+  protected readonly difficultyHint = computed(
+    () => DIFFICULTIES.find((d) => d.value === this.difficulty())?.hint ?? '',
+  );
   protected readonly generating = signal(false);
   protected readonly genError = signal<string | null>(null);
 
   protected readonly toDelete = signal<QuizSummary | null>(null);
   protected readonly deleting = signal(false);
 
-  protected readonly canGenerate = computed(() => this.picked().size > 0 && !this.generating());
+  protected readonly canGenerate = computed(
+    () => this.picked().size > 0 && this.kinds().size > 0 && !this.generating(),
+  );
 
   constructor() {
     this.load();
@@ -84,12 +108,27 @@ export class QuizListPage {
     });
   }
 
+  protected toggleKind(kind: QuestionKind): void {
+    this.kinds.update((s) => {
+      const next = new Set(s);
+      next.has(kind) ? next.delete(kind) : next.add(kind);
+      return next;
+    });
+  }
+
   protected generate(): void {
     if (!this.canGenerate()) return;
     this.generating.set(true);
     this.genError.set(null);
     this.quizApi
-      .create({ document_ids: [...this.picked()], topic: this.topic().trim() || undefined, question_count: this.count() })
+      .create({
+        document_ids: [...this.picked()],
+        topic: this.topic().trim() || undefined,
+        question_count: this.count(),
+        difficulty: this.difficulty(),
+        // Stable order, so the request doesn't depend on the order the boxes were ticked.
+        question_types: KIND_OPTIONS.map((k) => k.value).filter((k) => this.kinds().has(k)),
+      })
       .subscribe({
         next: (q) => this.router.navigate(['/quizzes', q.id]),
         error: (e) => {

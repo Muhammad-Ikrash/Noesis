@@ -2,7 +2,7 @@ import {
   ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked,
 } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { AttemptSummary, Quiz } from '../../core/api/models';
+import { AttemptSummary, Quiz, QuizAnswer, QuizQuestion } from '../../core/api/models';
 import { apiErrorMessage } from '../../core/http/api-error';
 import { QuizService } from '../../core/services/quiz.service';
 import { relativeTime } from '../../shared/format';
@@ -15,9 +15,41 @@ const LETTERS = ['A', 'B', 'C', 'D'];
 /** Unsubmitted answers, kept per quiz in this browser. `qids` guards against a changed question set. */
 interface QuizDraft {
   qids: string[];
-  answers: (number | null)[];
+  answers: QuizAnswer[];
   index: number;
 }
+
+/** Skipped, or a multiple-choice question with nothing ticked. */
+export function isAnswered(a: QuizAnswer): boolean {
+  return a !== null && !(Array.isArray(a) && a.length === 0);
+}
+
+/** Next answer after picking `option`: multiple choice toggles it, the other kinds replace it. */
+export function pickOption(question: QuizQuestion, current: QuizAnswer, option: number): QuizAnswer {
+  if (option < 0 || option >= question.options.length) return current;
+  if (question.kind !== 'multiple') return option;
+  const picked = new Set(Array.isArray(current) ? current : current === null ? [] : [current]);
+  picked.has(option) ? picked.delete(option) : picked.add(option);
+  return [...picked].sort((a, b) => a - b);
+}
+
+export function isPicked(answer: QuizAnswer, option: number): boolean {
+  return Array.isArray(answer) ? answer.includes(option) : answer === option;
+}
+
+/** A stored answer that still fits the question (guards against stale or edited drafts). */
+export function validAnswer(question: QuizQuestion, a: unknown): boolean {
+  const ok = (i: unknown) => Number.isInteger(i) && (i as number) >= 0 && (i as number) < question.options.length;
+  if (a === null) return true;
+  if (question.kind === 'multiple') return Array.isArray(a) && a.every(ok);
+  return ok(a);
+}
+
+const KIND_HINT: Record<QuizQuestion['kind'], string> = {
+  single: 'Choose one answer',
+  multiple: 'Select all that apply',
+  true_false: 'True or false?',
+};
 
 const draftKey = (quizId: string) => `quizDraft.${quizId}`;
 
@@ -70,8 +102,8 @@ const draftKey = (quizId: string) => `quizDraft.${quizId}`;
 
         <nav class="dots" aria-label="Questions">
           @for (item of q.questions; track item.id; let i = $index) {
-            <button type="button" [class.is-current]="i === index()" [class.is-done]="answers()[i] !== null"
-                    (click)="index.set(i)" [attr.aria-label]="'Question ' + (i + 1) + (answers()[i] !== null ? ', answered' : '')"
+            <button type="button" [class.is-current]="i === index()" [class.is-done]="answered(i)"
+                    (click)="index.set(i)" [attr.aria-label]="'Question ' + (i + 1) + (answered(i) ? ', answered' : '')"
                     [attr.aria-current]="i === index() ? 'step' : null">{{ i + 1 }}</button>
           }
         </nav>
@@ -80,11 +112,17 @@ const draftKey = (quizId: string) => `quizDraft.${quizId}`;
           <section class="card" aria-live="polite">
             <p class="mono muted">Question {{ index() + 1 }} of {{ q.questions.length }} · from {{ item.filename }}</p>
             <h2>{{ item.prompt }}</h2>
-            <div class="options" role="radiogroup" [attr.aria-label]="'Answers for question ' + (index() + 1)">
+            <p class="kind" [class.kind--multi]="item.kind === 'multiple'">{{ kindHint[item.kind] }}</p>
+            <div class="options" [class.options--tf]="item.kind === 'true_false'"
+                 [attr.role]="item.kind === 'multiple' ? 'group' : 'radiogroup'"
+                 [attr.aria-label]="'Answers for question ' + (index() + 1)">
               @for (opt of item.options; track $index; let o = $index) {
-                <button type="button" role="radio" class="opt" [attr.aria-checked]="answers()[index()] === o"
-                        (click)="choose(o)">
-                  <span class="opt__key">{{ letters[o] }}</span><span>{{ opt }}</span>
+                <button type="button" class="opt" [class.opt--multi]="item.kind === 'multiple'"
+                        [attr.role]="item.kind === 'multiple' ? 'checkbox' : 'radio'"
+                        [attr.aria-checked]="picked(o)" (click)="choose(o)">
+                  <span class="opt__key">
+                    @if (item.kind === 'multiple' && picked(o)) { <app-icon name="check" [size]="13" /> } @else { {{ letters[o] }} }
+                  </span><span>{{ opt }}</span>
                 </button>
               }
             </div>
@@ -106,7 +144,10 @@ const draftKey = (quizId: string) => `quizDraft.${quizId}`;
             </button>
           }
         </footer>
-        <p class="hint mono muted">Keys: 1–4 or A–D to answer · ← → to move</p>
+        <p class="hint mono muted">
+          Keys: {{ current()?.kind === 'true_false' ? '1–2 or A–B' : '1–4 or A–D' }}
+          to {{ current()?.kind === 'multiple' ? 'tick' : 'answer' }} · ← → to move
+        </p>
       }
     </div>
 
@@ -156,7 +197,13 @@ const draftKey = (quizId: string) => `quizDraft.${quizId}`;
       .mono { font-size: var(--text-xs); }
       h2 { font-size: var(--text-xl); margin: var(--space-3) 0 var(--space-5); line-height: 1.25; }
     }
+    .kind {
+      margin: calc(-1 * var(--space-3)) 0 var(--space-4); font-size: var(--text-sm); color: var(--ink-3);
+      &.kind--multi { color: var(--pen); font-weight: 500; }
+    }
     .options { display: grid; gap: var(--space-2); }
+    .options--tf { grid-template-columns: 1fr 1fr; }
+    .opt--multi .opt__key { border-radius: 6px; }
     .opt {
       display: flex; gap: var(--space-4); align-items: flex-start; text-align: left;
       padding: var(--space-3) var(--space-4); border: 1px solid var(--rule-strong); border-radius: var(--radius);
@@ -190,7 +237,8 @@ export class QuizRunnerPage {
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly index = signal(0);
-  protected readonly answers = signal<(number | null)[]>([]);
+  protected readonly answers = signal<QuizAnswer[]>([]);
+  protected readonly kindHint = KIND_HINT;
   protected readonly submitting = signal(false);
   protected readonly submitError = signal<string | null>(null);
   protected readonly confirmOpen = signal(false);
@@ -200,7 +248,7 @@ export class QuizRunnerPage {
   protected readonly ago = relativeTime;
   protected readonly current = computed(() => this.quiz()?.questions[this.index()] ?? null);
   protected readonly total = computed(() => this.quiz()?.questions.length ?? 0);
-  protected readonly answeredCount = computed(() => this.answers().filter((a) => a !== null).length);
+  protected readonly answeredCount = computed(() => this.answers().filter(isAnswered).length);
 
   /** Past attempts from the quiz detail response, newest first. */
   protected readonly attempts = computed<AttemptSummary[]>(() =>
@@ -220,7 +268,7 @@ export class QuizRunnerPage {
       const answers = this.answers();
       const index = this.index();
       if (!q || this.submitted || answers.length !== q.questions.length) return;
-      if (answers.every((a) => a === null) && index === 0) removeKey(draftKey(q.id));
+      if (!answers.some(isAnswered) && index === 0) removeKey(draftKey(q.id));
       else writeJson(draftKey(q.id), { qids: q.questions.map((x) => x.id), answers, index } satisfies QuizDraft);
     });
   }
@@ -240,7 +288,7 @@ export class QuizRunnerPage {
       Array.isArray(draft.qids) && Array.isArray(draft.answers) &&
       draft.qids.length === ids.length && draft.qids.every((id, i) => id === ids[i]) &&
       draft.answers.length === ids.length &&
-      draft.answers.every((a) => a === null || (Number.isInteger(a) && a >= 0 && a < LETTERS.length));
+      draft.answers.every((a, i) => validAnswer(q.questions[i], a));
     if (!valid) {
       removeKey(draftKey(q.id));
       return null;
@@ -267,7 +315,7 @@ export class QuizRunnerPage {
         this.quiz.set(q);
         this.answers.set(draft ? draft.answers : q.questions.map(() => null));
         this.index.set(draft ? draft.index : 0);
-        this.resumed.set(!!draft && draft.answers.some((a) => a !== null));
+        this.resumed.set(!!draft && draft.answers.some(isAnswered));
         this.loading.set(false);
       },
       error: (e) => {
@@ -277,9 +325,19 @@ export class QuizRunnerPage {
     });
   }
 
+  protected answered(i: number): boolean {
+    return isAnswered(this.answers()[i] ?? null);
+  }
+
+  protected picked(option: number): boolean {
+    return isPicked(this.answers()[this.index()] ?? null, option);
+  }
+
   protected choose(option: number): void {
+    const question = this.current();
+    if (!question) return;
     const i = this.index();
-    this.answers.update((a) => a.map((v, j) => (j === i ? option : v)));
+    this.answers.update((a) => a.map((v, j) => (j === i ? pickOption(question, v, option) : v)));
   }
 
   protected onKey(event: KeyboardEvent): void {
@@ -301,7 +359,9 @@ export class QuizRunnerPage {
     if (!q) return;
     this.submitting.set(true);
     this.submitError.set(null);
-    this.api.submit(q.id, this.answers()).subscribe({
+    // A multiple-choice question with nothing ticked counts as skipped.
+    const answers = this.answers().map((a) => (isAnswered(a) ? a : null));
+    this.api.submit(q.id, answers).subscribe({
       next: (r) => {
         // Only a successful submit clears the draft; a failed one keeps it for retry.
         this.submitted = true;

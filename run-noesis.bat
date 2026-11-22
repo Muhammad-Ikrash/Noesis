@@ -17,8 +17,14 @@ docker info >nul 2>&1
 if not errorlevel 1 goto :dockerready
 
 set "DOCKER_EXE="
-for %%P in ("%ProgramFiles%\Docker\Docker\Docker Desktop.exe" "%LOCALAPPDATA%\Programs\Docker\Docker\Docker Desktop.exe" "%LOCALAPPDATA%\Docker\Docker Desktop.exe") do (
+for %%P in ("%ProgramFiles%\Docker\Docker\Docker Desktop.exe" "%LOCALAPPDATA%\Programs\Docker\Docker\Docker Desktop.exe" "%LOCALAPPDATA%\Programs\DockerDesktop\Docker Desktop.exe" "%LOCALAPPDATA%\Docker\Docker Desktop.exe") do (
   if not defined DOCKER_EXE if exist %%P set "DOCKER_EXE=%%~P"
+)
+rem Fall back to the install that owns docker.exe: <install>\resources\bin\docker.exe
+if not defined DOCKER_EXE (
+  for /f "delims=" %%D in ('where docker 2^>nul') do (
+    if not defined DOCKER_EXE if exist "%%~dpD..\..\Docker Desktop.exe" set "DOCKER_EXE=%%~dpD..\..\Docker Desktop.exe"
+  )
 )
 if not defined DOCKER_EXE (
   echo [x] Docker is not running and Docker Desktop could not be found. Start it manually, then run this again.
@@ -67,8 +73,11 @@ goto :waitdb
 popd
 
 rem ---- Backend -------------------------------------------------------------
-echo [2/4] Starting the backend (migrations, then http://127.0.0.1:8000)...
-start "Noesis backend" /d "%~dp0Backend" cmd /k "uv sync && uv run alembic upgrade head && uv run backend"
+echo [2/4] Installing backend packages and starting the backend (http://127.0.0.1:8000)...
+pushd Backend
+call :uv_sync || (popd & goto :fail)
+popd
+start "Noesis backend" /d "%~dp0Backend" cmd /k "uv run alembic upgrade head && uv run backend"
 
 rem ---- Frontend ------------------------------------------------------------
 echo [3/4] Starting the frontend (http://localhost:4200)...
@@ -105,3 +114,29 @@ exit /b 0
 echo.
 pause
 exit /b 1
+
+
+rem ===== Helpers ================================================================
+
+rem :uv_sync - runs "uv sync" in the current folder. On some Windows machines uv
+rem downloads Python but cannot create its version link, so the first sync fails
+rem with "Missing expected target directory for Python minor version link".
+rem The interpreter itself is fine, so retry once and point uv at it directly.
+:uv_sync
+uv sync
+if not errorlevel 1 exit /b 0
+set "UV_PY="
+for /d %%D in ("%APPDATA%\uv\python\cpython-3.13*") do (
+  if exist "%%~D\python.exe" set "UV_PY=%%~D\python.exe"
+)
+if not defined UV_PY (
+  echo [x] uv sync failed. See the message above.
+  exit /b 1
+)
+echo       Retrying with the downloaded Python at %UV_PY%
+uv sync --python "%UV_PY%"
+if errorlevel 1 (
+  echo [x] uv sync failed. See the message above.
+  exit /b 1
+)
+exit /b 0

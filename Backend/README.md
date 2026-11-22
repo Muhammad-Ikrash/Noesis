@@ -90,11 +90,12 @@ answer with no valid citation becomes `insufficient_context`.
 ### Quizzes
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/quizzes` | `{document_ids[] \| conversation_id, topic?, question_count (1-15)}`. Multiple choice, grounded only in PDF passages; each question keeps filename/page. Response has no answer key. |
+| POST | `/quizzes` | `{document_ids[] \| conversation_id, topic?, question_count (1-15), difficulty? (easy \| medium \| hard, default medium), question_types? ([single \| multiple \| true_false], default [single])}`. Grounded only in PDF passages; each question keeps filename/page and its `kind`. Response has no answer key. |
 | GET | `/quizzes` | Summaries with `best_score`, `attempt_count`. |
 | GET | `/quizzes/{id}` | Questions (no answers) and past attempts. |
-| POST | `/quizzes/{id}/attempts` | `{answers: [0-3 \| null, ...]}` → score plus answer key, explanations and sources. |
+| POST | `/quizzes/{id}/attempts` | `{answers: [...]}`, one per question: an option index, a list of indexes for `multiple` questions, or `null` when skipped. A multiple-choice answer scores only if it is exactly the set of correct options. Returns the score plus answer key (`correct_indices`), explanations and sources. |
 | GET | `/quizzes/{id}/attempts/{attempt_id}` | Re-open a graded attempt. |
+| POST | `/quizzes/{id}/attempts/{attempt_id}/retry` | New quiz ("Retry: <title>") made of the questions that attempt got wrong or skipped, with the same answer keys and sources. No model call. 422 if nothing was missed. |
 | DELETE | `/quizzes/{id}` | |
 
 ### Settings

@@ -54,7 +54,7 @@
           @if (index() === 0) {
             <section class="slide slide--title">
               <p class="slide__eyebrow">Noesis · Study deck</p>
-              <h2 class="slide__deck-title">{{ d.title || 'Untitled deck' }}</h2>
+              <h2 class="slide__deck-title" [class.is-long]="(d.title || '').length > 60">{{ d.title || 'Untitled deck' }}</h2>
               <span class="slide__rule"></span>
               @if (d.subtitle) { <p class="slide__subtitle">{{ d.subtitle }}</p> }
               @if (filenames().length && design().show_sources) { <p class="slide__from">From {{ filenames().join(', ') }}</p> }
@@ -62,9 +62,9 @@
           } @else if (current(); as s) {
             <section class="slide">
               @if (design().show_numbers) { <p class="slide__num">{{ num(s.position) }} / {{ num(d.slides.length) }}</p> }
-              <h2 class="slide__title">{{ s.title || 'Untitled slide' }}</h2>
+              <h2 class="slide__title" [class.is-long]="(s.title || '').length > 70">{{ s.title || 'Untitled slide' }}</h2>
               <span class="slide__rule"></span>
-              <ul class="slide__bullets" [class.is-dense]="s.bullets.length > 4">
+              <ul class="slide__bullets" [class]="'is-' + density()">
                 @for (b of s.bullets; track $index) { <li>{{ b }}</li> }
               </ul>
               @if (s.sources.length && design().show_sources) {
@@ -99,15 +99,24 @@
           </button>
         </div>
 
-        <nav #strip class="strip" aria-label="Slides">
-          <button type="button" class="thumb" data-i="0" [class.is-current]="index() === 0" (click)="go(0)"
-                  [attr.aria-current]="index() === 0 ? 'step' : null">
-            <span class="thumb__num mono">Title</span><span class="thumb__title">{{ d.title || 'Untitled deck' }}</span>
+        <!-- Thumbnails use the deck's own theme, so the strip previews what the slides look like. -->
+        <nav #strip class="strip" aria-label="Slides" [style]="vars()" [class.align-center]="design().align === 'center'">
+          <button type="button" class="thumb thumb--title" data-i="0" [class.is-current]="index() === 0" (click)="go(0)"
+                  [attr.aria-current]="index() === 0 ? 'step' : null" [attr.aria-label]="'Title slide: ' + (d.title || 'Untitled deck')">
+            <span class="thumb__num mono">Title</span>
+            <span class="thumb__title">{{ d.title || 'Untitled deck' }}</span>
+            <span class="thumb__rule"></span>
           </button>
           @for (s of d.slides; track s.id; let i = $index) {
             <button type="button" class="thumb" [attr.data-i]="i + 1" [class.is-current]="index() === i + 1" (click)="go(i + 1)"
-                    [attr.aria-current]="index() === i + 1 ? 'step' : null">
-              <span class="thumb__num mono">{{ i + 1 }}</span><span class="thumb__title">{{ s.title || 'Untitled slide' }}</span>
+                    [attr.aria-current]="index() === i + 1 ? 'step' : null"
+                    [attr.aria-label]="'Slide ' + (i + 1) + ': ' + (s.title || 'Untitled slide')">
+              <span class="thumb__num mono">{{ i + 1 }}</span>
+              <span class="thumb__title">{{ s.title || 'Untitled slide' }}</span>
+              <span class="thumb__rule"></span>
+              <span class="thumb__lines" aria-hidden="true">
+                @for (b of s.bullets.slice(0, 4); track $index) { <span [style.width.%]="lineWidth(b)"></span> }
+              </span>
             </button>
           }
           @if (panel() === 'edit') {

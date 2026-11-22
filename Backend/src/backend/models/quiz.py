@@ -19,6 +19,8 @@ class Quiz(UUIDPk, Base):
     )
     title: Mapped[str] = mapped_column(String(255))
     topic: Mapped[str | None] = mapped_column(String(500))
+    # QuizDifficulty value: easy, medium or hard.
+    difficulty: Mapped[str] = mapped_column(String(10), default="medium")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow
     )
@@ -44,8 +46,13 @@ class QuizQuestion(UUIDPk, Base):
         ForeignKey("quizzes.id", ondelete="CASCADE"), index=True
     )
     position: Mapped[int] = mapped_column(Integer)
+    # QuestionKind value: single, multiple or true_false.
+    kind: Mapped[str] = mapped_column(String(20), default="single")
     prompt: Mapped[str] = mapped_column(Text)
     options: Mapped[list[str]] = mapped_column(JSONB)
+    # Every correct option; single and true/false questions have exactly one.
+    correct_indices: Mapped[list[int]] = mapped_column(JSONB)
+    # First correct option, kept for older clients.
     correct_index: Mapped[int] = mapped_column(Integer)
     explanation: Mapped[str] = mapped_column(Text)
     chunk_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -64,8 +71,9 @@ class QuizAttempt(UUIDPk, Base):
     quiz_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("quizzes.id", ondelete="CASCADE"), index=True
     )
-    # One entry per question, in order; null = skipped.
-    answers: Mapped[list[int | None]] = mapped_column(JSONB)
+    # One entry per question, in order: an option index, a list of indexes for
+    # multiple-choice questions, or null when skipped.
+    answers: Mapped[list[int | list[int] | None]] = mapped_column(JSONB)
     score: Mapped[int] = mapped_column(Integer)
     total: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(

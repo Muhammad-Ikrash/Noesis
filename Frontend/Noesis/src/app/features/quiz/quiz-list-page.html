@@ -38,6 +38,38 @@
         <input type="range" name="count" min="3" max="15" step="1" [ngModel]="count()" (ngModelChange)="count.set(+$event)" />
       </label>
 
+      <fieldset>
+        <legend>Difficulty</legend>
+        <div class="segmented" role="radiogroup" aria-label="Difficulty">
+          @for (d of difficulties; track d.value) {
+            <label class="seg" [class.is-on]="difficulty() === d.value" [title]="d.hint">
+              <input type="radio" name="difficulty" [value]="d.value" [checked]="difficulty() === d.value"
+                     (change)="difficulty.set(d.value)" />
+              <span>{{ d.label }}</span>
+            </label>
+          }
+        </div>
+        <p class="muted small hint">{{ difficultyHint() }}</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Question types</legend>
+        <ul class="kinds">
+          @for (k of kindOptions; track k.value) {
+            <li>
+              <label [class.is-on]="kinds().has(k.value)">
+                <input type="checkbox" [checked]="kinds().has(k.value)" (change)="toggleKind(k.value)" />
+                <span class="kind__text">
+                  <span>{{ k.label }}</span>
+                  <span class="muted small">{{ k.hint }}</span>
+                </span>
+              </label>
+            </li>
+          }
+        </ul>
+        @if (!kinds().size) { <p class="small warn-text">Pick at least one question type.</p> }
+      </fieldset>
+
       @if (genError()) { <div class="alert" role="alert"><div>{{ genError() }}</div></div> }
 
       <button class="btn btn--primary" type="submit" [disabled]="!canGenerate()">
@@ -67,7 +99,7 @@
             <li>
               <div class="q__main">
                 <a [routerLink]="['/quizzes', q.id]" class="q__title">{{ q.title }}</a>
-                <span class="mono muted">{{ q.question_count }} questions · {{ ago(q.created_at) }}
+                <span class="mono muted">{{ q.question_count }} questions · {{ difficultyLabel[q.difficulty] ?? 'Medium' }} · {{ ago(q.created_at) }}
                   @if (q.attempt_count) { · {{ q.attempt_count }} attempt{{ q.attempt_count > 1 ? 's' : '' }} }</span>
               </div>
               @if (q.best_score !== null) {
