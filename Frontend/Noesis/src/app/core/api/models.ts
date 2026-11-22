@@ -124,16 +124,25 @@ export interface UserSettings {
   default_retrieval_scope: RetrievalScope;
 }
 
+export type QuizDifficulty = 'easy' | 'medium' | 'hard';
+/** single: one correct of four. multiple: two or three correct of four. true_false: True / False. */
+export type QuestionKind = 'single' | 'multiple' | 'true_false';
+/** One answer: an option index, several indexes (multiple choice), or null when skipped. */
+export type QuizAnswer = number | number[] | null;
+
 export interface QuizCreate {
   document_ids?: string[];
   conversation_id?: string;
   topic?: string;
   question_count: number;
+  difficulty?: QuizDifficulty;
+  question_types?: QuestionKind[];
 }
 
 export interface QuizQuestion {
   id: string;
   position: number;
+  kind: QuestionKind;
   prompt: string;
   options: string[];
   filename: string;
@@ -141,6 +150,7 @@ export interface QuizQuestion {
 }
 
 export interface QuizQuestionReview extends QuizQuestion {
+  correct_indices: number[];
   correct_index: number;
   explanation: string;
   document_id: string | null;
@@ -158,6 +168,7 @@ export interface QuizSummary {
   id: string;
   title: string;
   topic: string | null;
+  difficulty: QuizDifficulty;
   conversation_id: string | null;
   question_count: number;
   best_score: number | null;
@@ -169,6 +180,7 @@ export interface Quiz {
   id: string;
   title: string;
   topic: string | null;
+  difficulty: QuizDifficulty;
   conversation_id: string | null;
   created_at: string;
   questions: QuizQuestion[];
@@ -180,7 +192,7 @@ export interface AttemptResult {
   quiz_id: string;
   score: number;
   total: number;
-  answers: (number | null)[];
+  answers: QuizAnswer[];
   created_at: string;
   questions: QuizQuestionReview[];
 }

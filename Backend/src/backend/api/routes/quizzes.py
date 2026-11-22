@@ -34,6 +34,7 @@ def _out(quiz: Quiz) -> QuizOut:
         id=quiz.id,
         title=quiz.title,
         topic=quiz.topic,
+        difficulty=quiz.difficulty,
         conversation_id=quiz.conversation_id,
         created_at=quiz.created_at,
         questions=[QuestionOut.model_validate(q) for q in quiz.questions],
@@ -57,7 +58,8 @@ def _result(quiz: Quiz, attempt: QuizAttempt) -> AttemptResult:
 def create_quiz(
     body: QuizCreate, db: DbSession, user: CurrentUser, llm: LLM, embedder: Embedder
 ) -> QuizOut:
-    """Generate a multiple-choice quiz from the given PDFs (or a chat's attached PDFs)."""
+    """Generate a quiz from the given PDFs (or a chat's attached PDFs) at the chosen
+    difficulty, using only the requested question types."""
     if not body.document_ids and body.conversation_id is None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -73,6 +75,8 @@ def create_quiz(
             count=body.question_count,
             llm=llm,
             embedder=embedder,
+            difficulty=body.difficulty,
+            kinds=body.question_types,
         )
     except NotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
@@ -90,6 +94,7 @@ def list_quizzes(db: DbSession, user: CurrentUser) -> list[QuizSummary]:
             id=q.id,
             title=q.title,
             topic=q.topic,
+            difficulty=q.difficulty,
             conversation_id=q.conversation_id,
             question_count=len(q.questions),
             attempt_count=len(q.attempts),
@@ -118,7 +123,8 @@ def delete_quiz(quiz_id: uuid.UUID, db: DbSession, user: CurrentUser) -> None:
 def submit_attempt(
     quiz_id: uuid.UUID, body: AttemptCreate, db: DbSession, user: CurrentUser
 ) -> AttemptResult:
-    """Grade answers (option index per question, null = skipped) and reveal the answer key."""
+    """Grade answers and reveal the answer key. One entry per question: an option index,
+    a list of indexes for multiple-choice questions, or null when skipped."""
     quiz = _owned(db, user, quiz_id)
     try:
         attempt = quiz_service.submit_attempt(db, quiz, body.answers)
@@ -136,3 +142,23 @@ def get_attempt(
         return _result(quiz, quiz_service.get_attempt(quiz, attempt_id))
     except NotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+
+
+@router.post(
+    "/{quiz_id}/attempts/{attempt_id}/retry",
+    response_model=QuizOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def retry_missed(
+    quiz_id: uuid.UUID, attempt_id: uuid.UUID, db: DbSession, user: CurrentUser
+) -> QuizOut:
+    """New quiz made of the questions this attempt got wrong or skipped (no model call)."""
+    quiz = _owned(db, user, quiz_id)
+    try:
+        attempt = quiz_service.get_attempt(quiz, attempt_id)
+        retry = quiz_service.retry_missed(db, quiz, attempt)
+    except NotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+    except QuizGenerationError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
+    return _out(retry)
