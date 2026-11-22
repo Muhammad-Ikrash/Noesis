@@ -28,12 +28,14 @@
 // Colours and fonts come from the deck's design (--s-*); the "App" theme falls back to the
 // app's own tokens, so it follows light/dark mode. Sizes use container units so the slide
 // scales the same inline and when presenting.
-.stage {
+.stage, .strip {
   --s-paper: var(--s-bg, var(--surface));
   --s-text: var(--s-ink, var(--ink));
   --s-text-2: color-mix(in srgb, var(--s-text) 75%, var(--s-paper));
   --s-muted: color-mix(in srgb, var(--s-text) 55%, var(--s-paper));
   --s-pen: var(--s-accent, var(--pen));
+}
+.stage {
   position: relative; container-type: inline-size; aspect-ratio: 16 / 9; overflow: hidden;
   border: 1px solid var(--rule); border-radius: var(--radius); background: var(--s-paper);
   box-shadow: 0 1px 0 #0000000a, 0 12px 32px -20px #00000059;
@@ -52,6 +54,7 @@
 .stage__exit { position: absolute; top: 12px; right: 12px; opacity: .6; &:hover, &:focus-visible { opacity: 1; } }
 
 .slide {
+  --fit: 1;
   container-type: inline-size; position: relative; display: flex; flex-direction: column;
   height: 100%; padding: 6.5cqw 7cqw 5cqw; color: var(--s-text); animation: rise .2s var(--ease);
 }
@@ -60,24 +63,34 @@
   font-family: var(--font-mono); font-size: 1.05cqw; color: var(--s-muted);
 }
 .slide__title {
-  margin: 0; font-family: var(--s-head, var(--font-read)); font-weight: 500; font-size: 3.6cqw; line-height: 1.15;
-  color: var(--s-text); max-width: 90%;
+  margin: 0; font-family: var(--s-head, var(--font-read)); font-weight: 500; font-size: calc(3.6cqw * var(--fit)); line-height: 1.15;
+  color: var(--s-text); max-width: 90%; text-wrap: balance;
+  &.is-long { font-size: calc(3cqw * var(--fit)); }
 }
-.slide__rule { display: block; flex: none; width: 6cqw; height: .3cqw; margin: 2cqw 0 2.6cqw; background: var(--s-pen); border-radius: 1px; }
+.slide__rule {
+  display: block; flex: none; width: 6cqw; height: .3cqw; margin: calc(2cqw * var(--fit)) 0 calc(2.6cqw * var(--fit));
+  background: var(--s-pen); border-radius: 1px;
+}
 .slide__bullets {
-  counter-reset: bullet; margin: 0; padding: 0; list-style: none; display: grid; gap: 1.6cqw; align-content: start;
-  flex: 1; min-height: 0; font-family: var(--s-body, var(--font-ui)); font-size: 2.05cqw; line-height: 1.4; color: var(--s-text);
-  li { position: relative; padding-left: 2.6cqw; counter-increment: bullet; }
+  --size: 2.05cqw; --gap: 1.6cqw;
+  counter-reset: bullet; margin: 0; padding: 0; list-style: none; display: grid; gap: calc(var(--gap) * var(--fit)); align-content: start;
+  flex: 1; min-height: 0; font-family: var(--s-body, var(--font-ui)); font-size: calc(var(--size) * var(--fit)); line-height: 1.4;
+  color: var(--s-text); text-wrap: pretty;
+  li { position: relative; padding-left: 1.3em; counter-increment: bullet; max-width: 62em; }
+  // Marker sized in em so it stays centred on the first line at every text size.
   li::before {
-    content: ''; position: absolute; left: .3cqw; top: .62em; width: .8cqw; height: .8cqw;
+    content: ''; position: absolute; left: .15em; top: .52em; width: .38em; height: .38em;
     border-radius: 50%; background: var(--s-pen);
   }
-  &.is-dense { gap: 1.1cqw; font-size: 1.8cqw; }
+  // Type size follows how much text the slide carries (slideDensity in slide-design.ts).
+  &.is-sparse { --size: 2.6cqw; --gap: 2.4cqw; }
+  &.is-dense { --size: 1.8cqw; --gap: 1.2cqw; }
+  &.is-tight { --size: 1.55cqw; --gap: .9cqw; line-height: 1.35; }
 }
 .bullets-dash .slide__bullets li::before {
   content: '–'; top: 0; width: auto; height: auto; border-radius: 0; background: none; color: var(--s-pen);
 }
-.bullets-number .slide__bullets li { padding-left: 3.4cqw; }
+.bullets-number .slide__bullets li { padding-left: 1.7em; }
 .bullets-number .slide__bullets li::before {
   content: counter(bullet) '.'; top: 0; left: 0; width: auto; height: auto; border-radius: 0; background: none;
   color: var(--s-pen); font-family: var(--font-mono); font-size: .85em; line-height: 1.65;
@@ -85,7 +98,9 @@
 .bullets-none .slide__bullets li { padding-left: 0; &::before { display: none; } }
 
 .slide__source {
-  margin: 1.5cqw 0 0; font-family: var(--font-mono); font-size: 1.05cqw; color: var(--s-muted);
+  flex: none; margin: 1.5cqw 0 0; padding-top: 1.2cqw; border-top: 1px solid color-mix(in srgb, var(--s-text) 12%, transparent);
+  font-family: var(--font-mono); font-size: 1.05cqw; color: var(--s-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   a { color: var(--s-text-2); &:hover { color: var(--s-pen); } }
 }
 
@@ -94,12 +109,14 @@
   margin: 0 0 1.6cqw; font-family: var(--font-mono); font-size: 1.1cqw; letter-spacing: .12em; text-transform: uppercase; color: var(--s-pen);
 }
 .slide__deck-title {
-  margin: 0; font-family: var(--s-head, var(--font-read)); font-weight: 500; font-size: 5.2cqw; line-height: 1.08;
-  color: var(--s-text); max-width: 85%;
+  margin: 0; font-family: var(--s-head, var(--font-read)); font-weight: 500; font-size: calc(5.2cqw * var(--fit)); line-height: 1.08;
+  color: var(--s-text); max-width: 85%; text-wrap: balance;
+  &.is-long { font-size: calc(4.2cqw * var(--fit)); }
 }
 .slide--title .slide__rule { width: 9cqw; margin: 3cqw 0; }
 .slide__subtitle {
-  margin: 0; font-family: var(--s-head, var(--font-read)); font-size: 2cqw; line-height: 1.4; color: var(--s-text-2); max-width: 75%;
+  margin: 0; font-family: var(--s-head, var(--font-read)); font-size: calc(2cqw * var(--fit)); line-height: 1.4;
+  color: var(--s-text-2); max-width: 75%; text-wrap: balance;
 }
 .slide__from { position: absolute; left: 7cqw; right: 7cqw; bottom: 4.5cqw; margin: 0; font-family: var(--font-mono); font-size: 1.05cqw; color: var(--s-muted); }
 
@@ -109,6 +126,8 @@
   .slide__title, .slide__deck-title, .slide__subtitle { margin-left: auto; margin-right: auto; }
   .slide__rule { margin-left: auto; margin-right: auto; }
   .slide__bullets { justify-items: center; }
+  // Centred bullets read as a column of lines, so drop the markers' hanging indent.
+  .slide__bullets li { padding-left: 0; &::before { position: static; display: inline-block; margin-right: .5em; vertical-align: .12em; } }
   .slide__num { right: 7cqw; }
 }
 
@@ -128,20 +147,32 @@
   scroll-snap-type: x proximity;
 }
 .thumb {
-  flex: none; width: 150px; aspect-ratio: 16 / 9; display: flex; flex-direction: column; gap: 4px; padding: var(--space-2);
-  border: 1px solid var(--rule); border-radius: var(--radius-sm); background: var(--surface);
-  text-align: left; cursor: pointer; scroll-snap-align: start; transition: border-color .12s, box-shadow .12s;
-  &:hover { border-color: var(--rule-strong); }
-  &.is-current { border-color: var(--pen); box-shadow: 0 0 0 1px var(--pen); }
+  flex: none; width: 150px; aspect-ratio: 16 / 9; display: flex; flex-direction: column; gap: 3px; padding: 8px 10px;
+  border: 1px solid var(--rule); border-radius: var(--radius-sm); background: var(--s-paper); overflow: hidden;
+  text-align: left; cursor: pointer; scroll-snap-align: start; transition: border-color .12s, box-shadow .12s, transform .12s;
+  &:hover { border-color: var(--rule-strong); transform: translateY(-1px); }
+  &.is-current { border-color: var(--pen); box-shadow: 0 0 0 2px var(--pen); }
 }
-.thumb__num { font-size: 10px; color: var(--ink-3); }
-.is-current .thumb__num { color: var(--pen); }
+.thumb__num { font-size: 9px; color: var(--s-muted); }
+.is-current .thumb__num { color: var(--s-pen); }
 .thumb__title {
-  font-family: var(--font-read); font-size: var(--text-xs); line-height: 1.3; color: var(--ink);
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  flex: none; font-family: var(--s-head, var(--font-read)); font-size: 11px; line-height: 1.25; color: var(--s-text);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
+.thumb__rule { flex: none; display: block; width: 14px; height: 2px; margin: 2px 0 3px; border-radius: 1px; background: var(--s-pen); }
+.thumb__lines {
+  display: grid; gap: 3px; min-height: 0; overflow: hidden;
+  span { display: block; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--s-text) 22%, transparent); }
+}
+.thumb--title {
+  position: relative; justify-content: center;
+  .thumb__num { position: absolute; top: 6px; left: 10px; }
+  .thumb__title { font-size: 12px; -webkit-line-clamp: 3; }
+}
+.strip.align-center .thumb { align-items: center; text-align: center; .thumb__lines { justify-items: center; width: 100%; } }
 .thumb--add {
   align-items: center; justify-content: center; border-style: dashed; color: var(--ink-2); font-size: var(--text-xs);
+  background: var(--surface);
   &:hover { color: var(--pen); border-color: var(--pen); }
 }
 

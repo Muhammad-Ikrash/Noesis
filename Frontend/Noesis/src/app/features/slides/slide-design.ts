@@ -45,6 +45,22 @@ export function designVars(d: SlideDesign): Record<string, string> {
   return vars;
 }
 
+/** How much text a slide carries, which sets its type size before any measured fit. */
+export type SlideDensity = 'sparse' | 'normal' | 'dense' | 'tight';
+
+/**
+ * A few short bullets read better large; long lists need smaller type to stay inside 16:9.
+ * The viewer still measures the slide afterwards and shrinks it further if text would be cut off.
+ */
+export function slideDensity(slide: { title: string; bullets: string[] }): SlideDensity {
+  const bullets = slide.bullets.filter((b) => b.trim());
+  const chars = bullets.reduce((n, b) => n + b.trim().length, 0) + Math.max(0, slide.title.length - 60);
+  if (bullets.length <= 3 && chars <= 180) return 'sparse';
+  if (bullets.length <= 5 && chars <= 420) return 'normal';
+  if (bullets.length <= 7 && chars <= 650) return 'dense';
+  return 'tight';
+}
+
 /** The accent shown in the colour picker: custom, theme, or the app's light-theme pen. */
 export function effectiveAccent(d: SlideDesign): string {
   return d.accent ?? (THEMES.find((t) => t.id === d.theme)?.accent || '#962f22');
