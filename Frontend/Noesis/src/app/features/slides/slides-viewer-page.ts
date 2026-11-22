@@ -33,8 +33,8 @@ const MAX_SLIDES = 40;
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown)': 'onKey($event)', '(document:fullscreenchange)': 'onFullscreenChange()' },
   templateUrl: './slides-viewer-page.html',
-  // Slide and layout styles, then the Design / Edit side panels.
-  styleUrls: ['./slides-viewer-page.scss', './slides-viewer-panels.scss'],
+  // Slide and layout styles, the thumbnail strip, then the Design / Edit side panels.
+  styleUrls: ['./slides-viewer-page.scss', './slides-viewer-strip.scss', './slides-viewer-panels.scss'],
 })
 export class SlidesViewerPage {
   readonly deckId = input.required<string>();

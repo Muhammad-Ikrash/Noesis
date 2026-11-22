@@ -12,7 +12,6 @@ from backend.rag.prompts.common import format_sources, source_id
 from backend.services.conversation_service import NotFoundError, get_conversation
 from backend.services.retrieval import RetrievedChunk, retrieve
 
-
 TRUE_FALSE_OPTIONS = ("True", "False")
 
 
