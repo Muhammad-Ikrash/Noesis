@@ -1,0 +1,91 @@
+<div class="page">
+  <section class="intro">
+    <p class="eyebrow">Slides</p>
+    <h1>Present <em>what you've learned.</em></h1>
+    <p class="lede">Turn a PDF into a slide deck with speaker notes. Every slide cites its pages, and you can download it for PowerPoint.</p>
+  </section>
+
+  <div class="grid">
+    <form class="maker panel" (submit)="$event.preventDefault(); generate()" aria-labelledby="maker-h">
+      <h2 id="maker-h">New slide deck</h2>
+
+      <fieldset>
+        <legend>From these PDFs</legend>
+        @if (!library().length) {
+          <p class="muted small">No processed PDFs yet. <a routerLink="/library">Upload one</a> first.</p>
+        } @else {
+          <ul class="docs">
+            @for (d of library(); track d.id) {
+              <li>
+                <label [class.is-on]="picked().has(d.id)">
+                  <input type="checkbox" [checked]="picked().has(d.id)" (change)="toggle(d.id)" />
+                  <span>{{ d.filename }}</span>
+                </label>
+              </li>
+            }
+          </ul>
+        }
+      </fieldset>
+
+      <label class="field">
+        <span>Topic <span class="muted">(optional)</span></span>
+        <input class="input" name="topic" [ngModel]="topic()" (ngModelChange)="topic.set($event)"
+               placeholder="e.g. the methodology section" maxlength="500" />
+      </label>
+
+      <label class="field">
+        <span>Slides: <strong class="mono">{{ count() }}</strong> <span class="muted">+ title slide</span></span>
+        <input type="range" name="count" min="3" max="15" step="1" [ngModel]="count()" (ngModelChange)="count.set(+$event)" />
+      </label>
+
+      @if (genError()) { <div class="alert" role="alert"><div>{{ genError() }}</div></div> }
+
+      <button class="btn btn--primary" type="submit" [disabled]="!canGenerate()">
+        @if (generating()) { <span class="spinner"></span> Writing slides… } @else { <app-icon name="slides" [size]="16" /> Make slides }
+      </button>
+      @if (generating()) { <p class="muted small">This takes a few seconds while Noesis reads the PDF.</p> }
+    </form>
+
+    <section aria-labelledby="decks-h">
+      <div class="list-head"><h2 id="decks-h">Your slide decks</h2></div>
+      @if (loading()) {
+        @for (i of [1, 2, 3]; track i) { <div class="skeleton" style="height: 64px; margin-top: 12px"></div> }
+      } @else if (error()) {
+        <div class="alert" role="alert">
+          <div>{{ error() }}</div>
+          <button class="btn btn--sm" type="button" (click)="load()">Retry</button>
+        </div>
+      } @else if (!decks().length) {
+        <div class="empty">
+          <app-icon name="slides" [size]="28" />
+          <h3>No slide decks yet</h3>
+          <p>Choose a PDF and make your first deck. You can present it here or download it for PowerPoint.</p>
+        </div>
+      } @else {
+        <ul class="decks">
+          @for (d of decks(); track d.id) {
+            <li>
+              <div class="d__main">
+                <a [routerLink]="['/slides', d.id]" class="d__title">{{ d.title }}</a>
+                <span class="mono muted">{{ d.slide_count }} slides · {{ ago(d.created_at) }}
+                  @if (d.filenames.length) { · {{ d.filenames.join(', ') }} }</span>
+              </div>
+              <button class="btn btn--quiet btn--icon btn--sm" type="button" (click)="download(d)" [disabled]="downloading() === d.id"
+                      [attr.aria-label]="'Download ' + d.title + ' as PowerPoint'" title="Download .pptx">
+                @if (downloading() === d.id) { <span class="spinner"></span> } @else { <app-icon name="download" [size]="15" /> }
+              </button>
+              <a class="btn btn--sm" [routerLink]="['/slides', d.id]">Open</a>
+              <button class="btn btn--quiet btn--icon btn--sm" type="button" (click)="toDelete.set(d)" [attr.aria-label]="'Delete ' + d.title">
+                <app-icon name="trash" [size]="15" />
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  </div>
+</div>
+
+<app-confirm-dialog [open]="!!toDelete()" title="Delete this slide deck?" confirmLabel="Delete" [danger]="true" [busy]="deleting()"
+                    [message]="'“' + (toDelete()?.title ?? '') + '” will be removed. Downloaded PowerPoint files are not affected.'"
+                    (confirmed)="confirmDelete()" (cancelled)="toDelete.set(null)" />

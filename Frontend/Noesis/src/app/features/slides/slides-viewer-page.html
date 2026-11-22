@@ -1,0 +1,271 @@
+<div class="page" [class.is-wide]="panel() !== 'none'">
+  @if (loading()) {
+    <div class="skeleton" style="height: 28px; width: 50%"></div>
+    <div class="skeleton" style="aspect-ratio: 16 / 9; margin-top: 24px"></div>
+  } @else if (error()) {
+    <div class="alert" role="alert"><div>{{ error() }}</div><button class="btn btn--sm" type="button" (click)="load()">Retry</button></div>
+    <a class="btn btn--quiet" routerLink="/slides">Back to slides</a>
+  } @else if (deck(); as d) {
+    <header class="head">
+      <a class="btn btn--quiet btn--sm" routerLink="/slides"><app-icon name="left" [size]="14" />Slides</a>
+      <p class="eyebrow">{{ d.title || 'Untitled deck' }}</p>
+      <span class="spacer"></span>
+      <span class="save mono muted" role="status" aria-live="polite">
+        @switch (saveState()) {
+          @case ('saving') { Saving… }
+          @case ('saved') { <app-icon name="check" [size]="12" />Saved }
+          @case ('error') { <span class="save__err">Not saved</span> · <button type="button" class="linkish" (click)="flushSave()">Retry</button> }
+        }
+      </span>
+      <button class="btn btn--quiet btn--sm" type="button" (click)="togglePanel('edit')" [class.is-on]="panel() === 'edit'"
+              [attr.aria-pressed]="panel() === 'edit'" title="Edit slide text and order">
+        <app-icon name="edit" [size]="14" /><span class="hide-sm">Edit</span>
+      </button>
+      <button class="btn btn--quiet btn--sm" type="button" (click)="togglePanel('design')" [class.is-on]="panel() === 'design'"
+              [attr.aria-pressed]="panel() === 'design'" title="Theme, colours, fonts and layout">
+        <app-icon name="panel" [size]="14" /><span class="hide-sm">Design</span>
+      </button>
+      <button class="btn btn--quiet btn--sm" type="button" (click)="openRevise()" title="Ask AI to change a slide or the whole deck">
+        <app-icon name="sparkle" [size]="14" /><span class="hide-sm">Revise</span>
+      </button>
+      <button class="btn btn--sm" type="button" (click)="download()" [disabled]="downloading()" title="Download as PowerPoint"
+              aria-label="Download as PowerPoint">
+        @if (downloading()) { <span class="spinner"></span> } @else { <app-icon name="download" [size]="14" /> }
+        <span class="hide-sm">.pptx</span>
+      </button>
+      <button class="btn btn--primary btn--sm" type="button" (click)="present()">
+        <app-icon name="slides" [size]="14" />Present
+      </button>
+    </header>
+
+    @if (undoSnapshot()) {
+      <p class="revised mono muted" role="status">
+        <app-icon name="sparkle" [size]="12" />Revised with AI ·
+        <button type="button" class="linkish" (click)="undoRevision()" [disabled]="undoing()">{{ undoing() ? 'Undoing…' : 'Undo' }}</button>
+      </p>
+    }
+
+    <div class="work" [class.has-panel]="panel() !== 'none'">
+      <div class="main">
+        <div #stage class="stage" tabindex="-1" (click)="onStageClick($event)" [class.is-presenting]="presenting()"
+             [class.is-themed]="design().theme !== 'auto'" [class.align-center]="design().align === 'center'"
+             [class]="'bullets-' + design().bullets" [style]="vars()"
+             role="region" [attr.aria-label]="'Slide ' + (index() + 1) + ' of ' + total()" aria-live="polite">
+          @if (index() === 0) {
+            <section class="slide slide--title">
+              <p class="slide__eyebrow">Noesis · Study deck</p>
+              <h2 class="slide__deck-title">{{ d.title || 'Untitled deck' }}</h2>
+              <span class="slide__rule"></span>
+              @if (d.subtitle) { <p class="slide__subtitle">{{ d.subtitle }}</p> }
+              @if (filenames().length && design().show_sources) { <p class="slide__from">From {{ filenames().join(', ') }}</p> }
+            </section>
+          } @else if (current(); as s) {
+            <section class="slide">
+              @if (design().show_numbers) { <p class="slide__num">{{ num(s.position) }} / {{ num(d.slides.length) }}</p> }
+              <h2 class="slide__title">{{ s.title || 'Untitled slide' }}</h2>
+              <span class="slide__rule"></span>
+              <ul class="slide__bullets" [class.is-dense]="s.bullets.length > 4">
+                @for (b of s.bullets; track $index) { <li>{{ b }}</li> }
+              </ul>
+              @if (s.sources.length && design().show_sources) {
+                <p class="slide__source">
+                  Source:
+                  @for (c of cites(s.sources); track c.filename; let last = $last) {
+                    @if (c.documentId) {
+                      <a [routerLink]="['/read', c.documentId]" [queryParams]="{ page: c.pages[0] }">{{ c.filename }} p. {{ c.pages.join(', ') }}</a>
+                    } @else {
+                      <span>{{ c.filename }} p. {{ c.pages.join(', ') }} (deleted)</span>
+                    }{{ last ? '' : '; ' }}
+                  }
+                </p>
+              }
+            </section>
+          }
+          @if (presenting()) {
+            <button class="btn btn--quiet btn--sm stage__exit" type="button" (click)="exitPresent()" aria-label="Exit presentation">
+              <app-icon name="x" [size]="14" />Exit
+            </button>
+            <p class="stage__hint">{{ index() + 1 }} / {{ total() }} · ← → to move · Esc to exit</p>
+          }
+        </div>
+
+        <div class="controls">
+          <button class="btn btn--quiet btn--icon" type="button" (click)="go(index() - 1)" [disabled]="index() === 0" aria-label="Previous slide">
+            <app-icon name="left" [size]="16" />
+          </button>
+          <span class="mono muted">Slide {{ index() + 1 }} of {{ total() }}</span>
+          <button class="btn btn--quiet btn--icon" type="button" (click)="go(index() + 1)" [disabled]="index() === total() - 1" aria-label="Next slide">
+            <app-icon name="right" [size]="16" />
+          </button>
+        </div>
+
+        <nav #strip class="strip" aria-label="Slides">
+          <button type="button" class="thumb" data-i="0" [class.is-current]="index() === 0" (click)="go(0)"
+                  [attr.aria-current]="index() === 0 ? 'step' : null">
+            <span class="thumb__num mono">Title</span><span class="thumb__title">{{ d.title || 'Untitled deck' }}</span>
+          </button>
+          @for (s of d.slides; track s.id; let i = $index) {
+            <button type="button" class="thumb" [attr.data-i]="i + 1" [class.is-current]="index() === i + 1" (click)="go(i + 1)"
+                    [attr.aria-current]="index() === i + 1 ? 'step' : null">
+              <span class="thumb__num mono">{{ i + 1 }}</span><span class="thumb__title">{{ s.title || 'Untitled slide' }}</span>
+            </button>
+          }
+          @if (panel() === 'edit') {
+            <button type="button" class="thumb thumb--add" (click)="addSlide()" aria-label="Add a slide after the current one">
+              <app-icon name="plus" [size]="16" /><span>Add slide</span>
+            </button>
+          }
+        </nav>
+
+        @if (panel() !== 'edit') {
+          <section class="notes panel" aria-labelledby="notes-h">
+            <h3 id="notes-h" class="eyebrow">Speaker notes</h3>
+            @if (current(); as s) {
+              <p>{{ s.notes || 'No notes for this slide.' }}</p>
+            } @else {
+              <p>Title slide. {{ d.slides.length }} content slide{{ d.slides.length === 1 ? '' : 's' }} follow{{ d.slides.length === 1 ? 's' : '' }}.</p>
+            }
+          </section>
+        }
+        <p class="hint mono muted">Keys: ← → or Space to move · Home / End · Present for full screen</p>
+      </div>
+
+      @if (panel() === 'design') {
+        <aside class="side panel" aria-labelledby="design-h">
+          <div class="side__head">
+            <h2 id="design-h">Design</h2>
+            <button type="button" class="linkish" (click)="resetDesign()">Reset</button>
+          </div>
+
+          <fieldset>
+            <legend>Theme</legend>
+            <div class="swatches">
+              @for (t of themes; track t.id) {
+                <button type="button" class="swatch" [attr.aria-pressed]="design().theme === t.id" (click)="pickTheme(t.id)"
+                        [style.--sw-bg]="t.bg || null" [style.--sw-ink]="t.ink || null" [style.--sw-accent]="t.accent || null">
+                  <span class="swatch__chip"><span class="swatch__line"></span><span class="swatch__dot"></span></span>
+                  <span class="swatch__label">{{ t.label }}</span>
+                </button>
+              }
+            </div>
+            <p class="muted small">“App” follows Noesis’ light or dark mode; it downloads as Paper.</p>
+          </fieldset>
+
+          <div class="field">
+            <span>Accent colour</span>
+            <div class="accent">
+              <input type="color" [value]="accent()" (input)="setDesign({ accent: $any($event.target).value })" aria-label="Accent colour" />
+              <span class="mono">{{ accent() }}</span>
+              @if (design().accent) { <button type="button" class="linkish" (click)="setDesign({ accent: null })">Use theme colour</button> }
+            </div>
+          </div>
+
+          <div class="field">
+            <span>Headings</span>
+            <div class="seg" role="group" aria-label="Heading font">
+              @for (f of fonts; track f) {
+                <button type="button" [attr.aria-pressed]="design().heading_font === f" (click)="setDesign({ heading_font: f })"
+                        [class]="'font-' + f">{{ fontLabels[f] }}</button>
+              }
+            </div>
+          </div>
+
+          <div class="field">
+            <span>Body text</span>
+            <div class="seg" role="group" aria-label="Body font">
+              @for (f of fonts; track f) {
+                <button type="button" [attr.aria-pressed]="design().body_font === f" (click)="setDesign({ body_font: f })"
+                        [class]="'font-' + f">{{ fontLabels[f] }}</button>
+              }
+            </div>
+          </div>
+
+          <div class="field">
+            <span>Alignment</span>
+            <div class="seg" role="group" aria-label="Alignment">
+              <button type="button" [attr.aria-pressed]="design().align === 'left'" (click)="setDesign({ align: 'left' })">Left</button>
+              <button type="button" [attr.aria-pressed]="design().align === 'center'" (click)="setDesign({ align: 'center' })">Centre</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <span>Bullets</span>
+            <div class="seg" role="group" aria-label="Bullet style">
+              <button type="button" [attr.aria-pressed]="design().bullets === 'dot'" (click)="setDesign({ bullets: 'dot' })" aria-label="Dots">•</button>
+              <button type="button" [attr.aria-pressed]="design().bullets === 'dash'" (click)="setDesign({ bullets: 'dash' })" aria-label="Dashes">–</button>
+              <button type="button" [attr.aria-pressed]="design().bullets === 'number'" (click)="setDesign({ bullets: 'number' })" aria-label="Numbers">1.</button>
+              <button type="button" [attr.aria-pressed]="design().bullets === 'none'" (click)="setDesign({ bullets: 'none' })">None</button>
+            </div>
+          </div>
+
+          <fieldset class="checks">
+            <legend>Show on slides</legend>
+            <label><input type="checkbox" [checked]="design().show_numbers" (change)="setDesign({ show_numbers: $any($event.target).checked })" /> Slide numbers</label>
+            <label><input type="checkbox" [checked]="design().show_sources" (change)="setDesign({ show_sources: $any($event.target).checked })" /> Sources</label>
+          </fieldset>
+
+          <p class="muted small">Changes apply here and to the .pptx download.</p>
+        </aside>
+      }
+
+      @if (panel() === 'edit') {
+        <aside class="side panel" aria-labelledby="edit-h">
+          @if (index() === 0) {
+            <div class="side__head"><h2 id="edit-h">Title slide</h2></div>
+            <label class="field">
+              <span>Deck title</span>
+              <input class="input" [value]="d.title" (input)="setDeckTitle($any($event.target).value)" maxlength="255" />
+            </label>
+            <label class="field">
+              <span>Subtitle <span class="muted">(optional)</span></span>
+              <textarea class="input" rows="3" [value]="d.subtitle ?? ''" (input)="setSubtitle($any($event.target).value)" maxlength="500"></textarea>
+            </label>
+            <button class="btn btn--sm" type="button" (click)="addSlide()"><app-icon name="plus" [size]="14" />Add a slide at the start</button>
+          } @else if (current(); as s) {
+            <div class="side__head">
+              <h2 id="edit-h">Slide {{ index() }}</h2>
+              <span class="mono muted">of {{ d.slides.length }}</span>
+            </div>
+            <label class="field">
+              <span>Title</span>
+              <input class="input" [value]="s.title" (input)="editSlide(s.id, { title: $any($event.target).value })" maxlength="255" />
+            </label>
+            <label class="field">
+              <span>Bullets <span class="muted">(one per line, up to 10)</span></span>
+              <textarea class="input" rows="6" [value]="bulletText(s)" (input)="editBullets(s.id, $any($event.target).value)"></textarea>
+            </label>
+            <label class="field">
+              <span>Speaker notes</span>
+              <textarea class="input" rows="4" [value]="s.notes" (input)="editSlide(s.id, { notes: $any($event.target).value })" maxlength="4000"></textarea>
+            </label>
+            <p class="muted small">
+              @if (s.sources.length) { Citations kept: {{ s.sources.length }} page{{ s.sources.length === 1 ? '' : 's' }} from your PDF. }
+              @else { No citations: this slide was added or copied by you. }
+            </p>
+            <div class="tools" role="group" aria-label="Slide actions">
+              <button class="btn btn--quiet btn--icon btn--sm" type="button" (click)="moveSlide(-1)" [disabled]="index() <= 1"
+                      aria-label="Move slide earlier" title="Move earlier"><app-icon name="left" [size]="15" /></button>
+              <button class="btn btn--quiet btn--icon btn--sm" type="button" (click)="moveSlide(1)" [disabled]="index() >= d.slides.length"
+                      aria-label="Move slide later" title="Move later"><app-icon name="right" [size]="15" /></button>
+              <button class="btn btn--quiet btn--sm" type="button" (click)="duplicateSlide()" title="Duplicate slide">
+                <app-icon name="copy" [size]="14" />Duplicate
+              </button>
+              <button class="btn btn--quiet btn--sm" type="button" (click)="addSlide()" title="Add a slide after this one">
+                <app-icon name="plus" [size]="14" />Add
+              </button>
+              <button class="btn btn--quiet btn--sm" type="button" (click)="openRevise()" title="Ask AI to change this slide">
+                <app-icon name="sparkle" [size]="14" />Revise
+              </button>
+              <span class="spacer"></span>
+              <button class="btn btn--quiet btn--icon btn--sm danger" type="button" (click)="deleteSlide()" [disabled]="d.slides.length <= 1"
+                      aria-label="Delete slide" title="Delete slide"><app-icon name="trash" [size]="15" /></button>
+            </div>
+          }
+        </aside>
+      }
+    </div>
+  }
+</div>
+
+<app-revise-dialog [open]="reviseOpen()" [slideNumber]="current() ? index() : 0" [busy]="revising()" [error]="reviseError()"
+                   (submitted)="onRevise($event)" (cancelled)="closeRevise()" />

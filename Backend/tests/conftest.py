@@ -22,7 +22,7 @@ TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+psycopg://noesis:noesis@localhost:5432/noesis_test"
 )
 TABLES = (
-    "flashcards, flashcard_decks, quiz_attempts, quiz_questions, quizzes, message_sources, messages, conversation_documents, conversations, "
+    "slides, slide_decks, flashcards, flashcard_decks, quiz_attempts, quiz_questions, quizzes, message_sources, messages, conversation_documents, conversations, "
     "document_chunks, document_pages, documents, users"
 )
 

@@ -17,6 +17,9 @@
     <a routerLink="/flashcards" routerLinkActive="is-active">
       <app-icon name="cards" [size]="16" /><span>Flashcards</span>
     </a>
+    <a routerLink="/slides" routerLinkActive="is-active">
+      <app-icon name="slides" [size]="16" /><span>Slides</span>
+    </a>
   </nav>
   <button class="btn btn--quiet btn--icon" type="button" (click)="theme.cycle()"
           [attr.aria-label]="'Theme: ' + theme.theme() + '. Click to change.'"
