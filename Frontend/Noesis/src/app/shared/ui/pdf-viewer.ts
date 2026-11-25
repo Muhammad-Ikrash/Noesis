@@ -7,6 +7,7 @@ import { firstValueFrom } from 'rxjs';
 import { apiErrorMessage } from '../../core/http/api-error';
 import { DocumentsService } from '../../core/services/documents.service';
 import { Icon } from './icon';
+import { installMapGetOrInsertComputed } from './pdfjs-compat';
 
 export interface ViewerTarget {
   page: number;
@@ -28,7 +29,8 @@ let pdfjsPromise: Promise<PdfJs> | null = null;
 
 function loadPdfJs(): Promise<PdfJs> {
   pdfjsPromise ??= import('pdfjs-dist').then((m) => {
-    m.GlobalWorkerOptions.workerSrc = '/pdfjs/pdf.worker.min.mjs';
+    installMapGetOrInsertComputed();
+    m.GlobalWorkerOptions.workerSrc = '/pdfjs/pdf.worker.shim.mjs';
     return m;
   });
   return pdfjsPromise;
@@ -211,7 +213,9 @@ export class PdfViewer {
       await new this.pdfjs.TextLayer({ textContentSource: page.streamTextContent(), container: text, viewport: vp }).render();
       if (this.pendingHighlight?.page === n) this.highlight(n, this.pendingHighlight.quote);
       if (this.pendingFind?.page === n) this.markFind(n, this.pendingFind.term);
-    } catch {
+    } catch (e) {
+      // Leave the page blank but retryable, and say why: a swallowed error here is an unexplained white page.
+      console.error(`PDF page ${n} failed to render.`, e);
       this.rendered.delete(n);
     }
   }
