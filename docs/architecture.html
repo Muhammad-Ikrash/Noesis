@@ -71,7 +71,7 @@
 <ul>
   <li>Frontend: <code>Frontend/Noesis/src/app</code> (Angular 22, standalone components, signals, OnPush).</li>
   <li>Backend: <code>Backend/src/backend</code> (FastAPI, SQLAlchemy 2, Alembic, python-pptx). Paths below are relative to these two folders unless written in full.</li>
-  <li>Database: Postgres 17 + pgvector in Docker (<code>Backend/docker-compose.yml</code>), schema in <code>Backend/alembic/versions/0001</code> to <code>0006</code>.</li>
+  <li>Database: Postgres 17 + pgvector in Docker (<code>Backend/docker-compose.yml</code>), schema in <code>Backend/alembic/versions/0001</code> to <code>0007</code>.</li>
   <li>Models: Qwen3-Embedding-0.6B runs locally on a usable GPU, otherwise on the CPU in fp32 with a measured thread count. Groq (<code>llama-3.3-70b-versatile</code>) writes every generated text.</li>
   <li>Auth is off: every request acts as one local user, created in <code>api/dependencies.py:27</code> (<code>get_current_user</code>).</li>
   <li>One-click scripts in the repository root: <code>setup.bat</code> downloads everything, <code>run-noesis.bat</code> starts Docker, the database, backend and frontend.</li>
@@ -86,7 +86,7 @@
     <tr><td>Library: upload, progress, search, status filter, sort</td><td><code>features/library/</code></td><td><code>/documents</code></td><td><code>document_service</code>, <code>ingestion</code></td></tr>
     <tr><td>Study chat with citations, copy answer, export session to Markdown, session filter, prompt starters</td><td><code>features/workspace/</code></td><td><code>/conversations</code></td><td><code>answer_service</code>, <code>conversation_service</code></td></tr>
     <tr><td>Reader: citations, resume last page, search in PDF, download</td><td><code>features/reader/</code>, <code>shared/ui/pdf-viewer.ts</code></td><td><code>/documents/{id}/file</code></td><td>(file only)</td></tr>
-    <tr><td>Quizzes: generate, take, attempt history, resumable drafts</td><td><code>features/quiz/</code></td><td><code>/quizzes</code></td><td><code>quiz_service</code></td></tr>
+    <tr><td>Quizzes: difficulty, single / multiple-choice / true-false questions, attempt history, retry missed, resumable drafts</td><td><code>features/quiz/</code></td><td><code>/quizzes</code></td><td><code>quiz_service</code></td></tr>
     <tr><td>Flashcards: generate decks, flip-card study, saved progress <span class="new">new</span></td><td><code>features/flashcards/</code></td><td><code>/flashcards</code></td><td><code>flashcard_service</code></td></tr>
     <tr><td>Slides: generate, design, edit, revise with AI, present, export .pptx <span class="new">new</span></td><td><code>features/slides/</code></td><td><code>/slides</code></td><td><code>slides_service</code>, <code>slides_export</code></td></tr>
     <tr><td>Settings: default retrieval scope</td><td><code>core/services/settings.service.ts</code></td><td><code>/settings</code></td><td>route only</td></tr>
@@ -200,16 +200,18 @@ classDiagram
   class Quiz {
     title: str
     topic: str
+    difficulty: easy / medium / hard
   }
   class QuizQuestion {
+    kind: single / multiple / true_false
     prompt: str
     options: list~str~
-    correct_index: int
+    correct_indices: list~int~
     explanation: str
     filename, page_number
   }
   class QuizAttempt {
-    answers: list~int~
+    answers: index, list or null
     score: int
   }
   class FlashcardDeck {
@@ -255,10 +257,10 @@ classDiagram
     <tr><td><code>DocumentChunk</code></td><td><code>models/document_chunk.py:25</code></td><td>A chunk of one page plus its 1024-dim vector (HNSW index)</td></tr>
     <tr><td><code>Conversation</code></td><td><code>models/conversation.py:26</code></td><td>A chat, its mode, scope and attached PDFs</td></tr>
     <tr><td><code>Message</code>, <code>MessageSource</code></td><td><code>models/message.py:25</code>, <code>:72</code></td><td>Questions and answers; citation snapshots</td></tr>
-    <tr><td><code>Quiz</code>, <code>QuizQuestion</code>, <code>QuizAttempt</code></td><td><code>models/quiz.py:11</code>, <code>:38</code>, <code>:61</code></td><td>Quizzes, their questions and graded attempts</td></tr>
+    <tr><td><code>Quiz</code>, <code>QuizQuestion</code>, <code>QuizAttempt</code></td><td><code>models/quiz.py:11</code>, <code>:40</code>, <code>:68</code></td><td>Quizzes with a difficulty; questions of three kinds with every correct option; graded attempts (migration 0007)</td></tr>
     <tr><td><code>FlashcardDeck</code>, <code>Flashcard</code> <span class="new">new</span></td><td><code>models/flashcard.py:10</code>, <code>:32</code></td><td>Decks and cards with “known” progress</td></tr>
     <tr><td><code>SlideDeck</code>, <code>Slide</code> <span class="new">new</span></td><td><code>models/slides.py:11</code>, <code>:36</code></td><td>Decks with design settings; slides with bullets, notes, citations</td></tr>
-    <tr><td>Enums</td><td><code>models/enums.py</code></td><td><code>DocumentStatus</code>, <code>LearningMode</code>, <code>RetrievalScope</code>, <code>AnswerStatus</code>, …</td></tr>
+    <tr><td>Enums</td><td><code>models/enums.py</code></td><td><code>DocumentStatus</code>, <code>LearningMode</code>, <code>RetrievalScope</code>, <code>AnswerStatus</code>, <code>QuizDifficulty</code>, <code>QuestionKind</code>, …</td></tr>
     <tr><td><code>Base</code>, <code>UUIDPk</code>, <code>Timestamps</code></td><td><code>database/base.py:20</code>, <code>:24</code>, <code>:28</code></td><td>Shared id and timestamp columns</td></tr>
   </tbody>
 </table>
@@ -372,6 +374,7 @@ classDiagram
   class quiz_service {
     generate_quiz()
     submit_attempt()
+    retry_missed()
   }
   class flashcard_service {
     generate_deck()
@@ -410,7 +413,7 @@ classDiagram
     <tr><td><code>retrieve</code></td><td><code>services/retrieval.py:34</code></td><td>Embeds the query, cosine search in pgvector, filters by scope</td></tr>
     <tr><td><code>ask</code></td><td><code>services/answer_service.py:41</code></td><td>Full chat turn: history, retrieval, Groq, citation check, save</td></tr>
     <tr><td><code>build_messages</code>, <code>normalize</code></td><td><code>rag/pipeline.py:44</code>, <code>:65</code></td><td>Builds the prompt; validates <code>S#</code> citations and renumbers them <code>[n]</code></td></tr>
-    <tr><td><code>generate_quiz</code>, <code>submit_attempt</code></td><td><code>services/quiz_service.py:104</code>, <code>:201</code></td><td>Builds questions from chunks; grades answers</td></tr>
+    <tr><td><code>generate_quiz</code>, <code>submit_attempt</code>, <code>retry_missed</code></td><td><code>services/quiz_service.py:155</code>, <code>:280</code>, <code>:315</code></td><td>Builds questions of the chosen difficulty and kinds; grades single, multiple-choice and true/false answers; copies missed questions into a new quiz without calling the model</td></tr>
     <tr><td><code>generate_deck</code>, <code>mark_card</code>, <code>reset_progress</code> <span class="new">new</span></td><td><code>services/flashcard_service.py:80</code>, <code>:176</code>, <code>:188</code></td><td>Writes cards from passages; saves “got it / still learning”; resets a deck</td></tr>
     <tr><td><code>generate_deck</code> <span class="new">new</span></td><td><code>services/slides_service.py:181</code></td><td>Passages in reading order, asks for exactly N slides, tops up missing ones (up to 2 more requests)</td></tr>
     <tr><td><code>update_deck</code>, <code>replace_slides</code> <span class="new">new</span></td><td><code>services/slides_service.py:308</code>, <code>:327</code></td><td>Title, subtitle and design; the edited slide list in order (citations kept, or restored on undo)</td></tr>
@@ -431,7 +434,7 @@ classDiagram
     <tr><td>Documents</td><td><code>POST /documents</code>, <code>GET /documents</code>, <code>GET /documents/{id}</code>, <code>GET /documents/{id}/file</code>, <code>DELETE /documents/{id}</code></td><td><code>api/routes/documents.py:27</code></td></tr>
     <tr><td>Conversations</td><td><code>POST</code>, <code>GET</code>, <code>GET /{id}</code>, <code>PATCH /{id}</code>, <code>DELETE /{id}</code></td><td><code>api/routes/conversations.py:38</code></td></tr>
     <tr><td>Chat</td><td><code>POST /conversations/{id}/messages</code></td><td><code>api/routes/chat.py:15</code></td></tr>
-    <tr><td>Quizzes</td><td><code>POST</code>, <code>GET</code>, <code>GET /{id}</code>, <code>DELETE /{id}</code>, <code>POST /{id}/attempts</code>, <code>GET /{id}/attempts/{attempt_id}</code></td><td><code>api/routes/quizzes.py:56</code></td></tr>
+    <tr><td>Quizzes</td><td><code>POST</code>, <code>GET</code>, <code>GET /{id}</code>, <code>DELETE /{id}</code>, <code>POST /{id}/attempts</code>, <code>GET /{id}/attempts/{attempt_id}</code>, <code>POST /{id}/attempts/{attempt_id}/retry</code></td><td><code>api/routes/quizzes.py:57</code></td></tr>
     <tr><td>Flashcards</td><td><code>POST</code>, <code>GET</code>, <code>GET /{id}</code>, <code>DELETE /{id}</code>, <code>PATCH /{id}/cards/{card_id}</code>, <code>POST /{id}/reset</code></td><td><code>api/routes/flashcards.py:40</code></td></tr>
     <tr><td>Slides</td><td><code>POST</code>, <code>GET</code>, <code>GET /{id}</code>, <code>PATCH /{id}</code>, <code>PUT /{id}/slides</code>, <code>POST /{id}/revise</code>, <code>GET /{id}/pptx</code>, <code>DELETE /{id}</code></td><td><code>api/routes/slides.py:58</code></td></tr>
     <tr><td>Settings</td><td><code>GET /settings</code>, <code>PUT /settings</code></td><td><code>api/routes/settings.py:9</code></td></tr>
@@ -507,11 +510,11 @@ classDiagram
     <tr><td><code>WorkspacePage</code></td><td><code>features/workspace/workspace-page.ts:45</code></td><td>Sessions rail with filter, chat, prompt starters, export to Markdown, quiz and flashcards from a chat</td></tr>
     <tr><td><code>Composer</code>, <code>ChatMessage</code>, <code>AttachDialog</code></td><td><code>features/workspace/composer.ts:59</code>, <code>chat-message.ts:18</code>, <code>attach-dialog.ts:61</code></td><td>Question box and toggles; one answer with copy button; choose a chat's PDFs</td></tr>
     <tr><td><code>ReaderPage</code></td><td><code>features/reader/reader-page.ts:69</code></td><td>Full-screen viewer at <code>?page=&amp;quote=</code>, resumes the last page, downloads the PDF</td></tr>
-    <tr><td><code>PdfViewer</code></td><td><code>shared/ui/pdf-viewer.ts:48</code></td><td>pdf.js rendering, zoom, page jump, quote highlight, search within the PDF</td></tr>
-    <tr><td><code>QuizListPage</code>, <code>QuizRunnerPage</code>, <code>QuizResultPage</code></td><td><code>features/quiz/quiz-list-page.ts:20</code>, <code>quiz-runner-page.ts:182</code>, <code>quiz-result-page.ts:88</code></td><td>Make, take (with history and resumable drafts) and review quizzes</td></tr>
+    <tr><td><code>PdfViewer</code></td><td><code>shared/ui/pdf-viewer.ts:50</code>, <code>pdfjs-compat.ts:6</code></td><td>pdf.js rendering, zoom, page jump, quote highlight, search within the PDF; a polyfill so PDF.js 5 renders in Firefox</td></tr>
+    <tr><td><code>QuizListPage</code>, <code>QuizRunnerPage</code>, <code>QuizResultPage</code></td><td><code>features/quiz/quiz-list-page.ts:34</code>, <code>quiz-runner-page.ts:229</code>, <code>quiz-result-page.ts:147</code></td><td>Make (difficulty, question kinds), take (history, resumable drafts) and review quizzes, retry the missed questions</td></tr>
     <tr><td><code>DeckListPage</code>, <code>DeckStudyPage</code> <span class="new">new</span></td><td><code>features/flashcards/deck-list-page.ts:20</code>, <code>deck-study-page.ts:22</code></td><td>Make decks; flip, mark, shuffle, filter, reset</td></tr>
-    <tr><td><code>SlidesListPage</code>, <code>SlidesViewerPage</code>, <code>ReviseDialog</code> <span class="new">new</span></td><td><code>features/slides/slides-list-page.ts:21</code>, <code>slides-viewer-page.ts:37</code>, <code>revise-dialog.ts:73</code></td><td>Make decks; view, present, Design and Edit panels with autosave, revise with AI and undo, download .pptx</td></tr>
-    <tr><td>Slide design helpers <span class="new">new</span></td><td><code>features/slides/slide-design.ts:33</code>, <code>slides-download.ts:14</code></td><td>Theme palettes as CSS variables (same as the export); <code>.pptx</code> download</td></tr>
+    <tr><td><code>SlidesListPage</code>, <code>SlidesViewerPage</code>, <code>ReviseDialog</code> <span class="new">new</span></td><td><code>features/slides/slides-list-page.ts:21</code>, <code>slides-viewer-page.ts:39</code>, <code>revise-dialog.ts:73</code></td><td>Make decks; view, present, Design and Edit panels with autosave, revise with AI and undo, fit text to each slide (<code>fitSlide</code> <code>:512</code>), download .pptx</td></tr>
+    <tr><td>Slide design helpers <span class="new">new</span></td><td><code>features/slides/slide-design.ts:33</code>, <code>:55</code>, <code>slides-download.ts:14</code></td><td>Theme palettes as CSS variables (same as the export); text density per slide; <code>.pptx</code> download</td></tr>
     <tr><td>Shared helpers</td><td><code>shared/answer-text.ts:15</code>, <code>download.ts:2</code>, <code>local-store.ts:9</code></td><td>Answer and session Markdown; Blob downloads and copy; safe <code>localStorage</code> (<code>noesis.</code> prefix)</td></tr>
     <tr><td>API services</td><td><code>core/services/*.service.ts</code></td><td><code>DocumentsService</code>, <code>ConversationsService</code>, <code>QuizService</code>, <code>FlashcardService</code>, <code>SlidesService</code>, <code>SettingsService</code></td></tr>
     <tr><td><code>ThemeService</code>, <code>ToastService</code></td><td><code>core/services/theme.service.ts:7</code>, <code>toast.service.ts:11</code></td><td>Light/dark theme (<code>noesis.theme</code>), notifications</td></tr>
@@ -604,7 +607,7 @@ sequenceDiagram
   participant R as routes/quizzes.py
   participant QS as quiz_service
   participant G as GroqLLMProvider
-  QP->>R: POST /quizzes (document_ids, topic?, count)
+  QP->>R: POST /quizzes (PDFs, topic?, count, difficulty, kinds)
   R->>QS: generate_quiz(): topic search or random passages
   QS->>G: complete(quiz prompt, json_mode)
   QS-->>QP: QuizOut (no answer key) + past attempts
@@ -615,8 +618,13 @@ sequenceDiagram
   R->>QS: submit_attempt(): grade, INSERT QuizAttempt
   R-->>QP: score + answer key + explanations
   QP->>LS: remove draft
+  opt retry missed
+    QP->>R: POST /quizzes/{id}/attempts/{attempt}/retry
+    R->>QS: retry_missed(): copy wrong or skipped questions
+    R-->>QP: new quiz (no model call)
+  end
 </pre>
-<figcaption>Routes <code>api/routes/quizzes.py:56</code> and <code>:113</code>; a draft only restores for the same questions in the same order.</figcaption>
+<figcaption>Routes <code>api/routes/quizzes.py:57</code>, <code>:118</code> (attempts) and <code>:147</code> (retry); multiple-choice answers are lists of option indexes; a draft only restores for the same questions in the same order.</figcaption>
 </figure>
 
 <h3>Flashcards <span class="new">new</span></h3>
@@ -674,11 +682,11 @@ sequenceDiagram
   R->>X: build_pptx(deck, design)
   X-->>S: editable PowerPoint
 </pre>
-<figcaption>The viewer is the source of truth while editing; saves are debounced and a download first flushes pending edits. Presenting covers the window and adds full screen when the browser allows it.</figcaption>
+<figcaption>The viewer is the source of truth while editing; saves are debounced and a download first flushes pending edits. Each slide's type size follows its text density, then <code>fitSlide</code> shrinks it further if text would be cut off. Presenting covers the window and adds full screen when the browser allows it.</figcaption>
 </figure>
 
 <h3>Reader <span class="new">new</span></h3>
-<p>The reader opens at an explicit <code>?page=</code> (citations, quiz review) or else at the last page read in this browser (<code>noesis.lastPage.&lt;id&gt;</code>, saved 400 ms after scrolling stops). Search loads each page's text once with pdf.js, highlights matches in their own colour so citation highlights stay, and notes image-only pages that have no searchable text. Download fetches <code>/documents/{id}/file</code> and saves it under the original filename.</p>
+<p>The reader opens at an explicit <code>?page=</code> (citations, quiz review) or else at the last page read in this browser (<code>noesis.lastPage.&lt;id&gt;</code>, saved 400 ms after scrolling stops). Search loads each page's text once with pdf.js, highlights matches in their own colour so citation highlights stay, and notes image-only pages that have no searchable text. Download fetches <code>/documents/{id}/file</code> and saves it under the original filename. <code>pdfjs-compat.ts</code> (and <code>public/pdfjs/pdf.worker.shim.mjs</code> for the worker) adds a method PDF.js 5 needs that Firefox lacks.</p>
 
 <h2>Status updates: polling</h2>
 <p><code>LibraryPage</code> calls <code>GET /documents</code> every 2.5 seconds, but only while at least one PDF is <code>pending</code> or <code>processing</code>, and stops once all are <code>completed</code>, <code>failed</code> or <code>missing</code>.</p>
@@ -708,11 +716,11 @@ stateDiagram-v2
 <table>
   <thead><tr><th>Script</th><th>What it does</th></tr></thead>
   <tbody>
-    <tr><td><code>setup.bat</code></td><td>Checks uv, Node.js and Docker (offers winget installs), creates <code>Backend\.env</code>, runs <code>uv sync</code>, pulls the database image, runs migrations, installs frontend packages, downloads the embedding model. Safe to run again.</td></tr>
-    <tr><td><code>run-noesis.bat</code></td><td>Starts Docker Desktop if needed, the database container, the backend (migrations, then <code>http://127.0.0.1:8000</code>) and the frontend (<code>http://localhost:4200</code>), then opens the browser.</td></tr>
+    <tr><td><code>setup.bat</code></td><td>Checks uv, Node.js and Docker (offers winget installs), creates <code>Backend\.env</code>, runs <code>uv sync</code>, pulls the database image, runs migrations, installs frontend packages, downloads the embedding model. Retries <code>uv sync</code> with uv's own Python if the first sync fails. Safe to run again.</td></tr>
+    <tr><td><code>run-noesis.bat</code></td><td>Starts Docker Desktop if needed (also found through <code>docker.exe</code>'s install folder), the database container, the backend (migrations, then <code>http://127.0.0.1:8000</code>) and the frontend (<code>http://localhost:4200</code>), then opens the browser.</td></tr>
   </tbody>
 </table>
-<div class="note">Migrations: <code>0001</code> initial schema, <code>0002</code> quizzes, <code>0003</code> ingestion progress, <code>0004</code> flashcards, <code>0005</code> slide decks, <code>0006</code> slide design.</div>
+<div class="note">Migrations: <code>0001</code> initial schema, <code>0002</code> quizzes, <code>0003</code> ingestion progress, <code>0004</code> flashcards, <code>0005</code> slide decks, <code>0006</code> slide design, <code>0007</code> quiz difficulty and question kinds.</div>
 
 <h2>File index</h2>
 <table>
@@ -727,8 +735,8 @@ stateDiagram-v2
     <tr><td>Local user, storage, ingestor wiring</td><td><code>Backend/src/backend/api/dependencies.py</code></td></tr>
     <tr><td>Business logic, PowerPoint export</td><td><code>Backend/src/backend/services/</code></td></tr>
     <tr><td>Prompts, citation checks, providers, CPU tuning</td><td><code>Backend/src/backend/rag/</code></td></tr>
-    <tr><td>Migrations</td><td><code>Backend/alembic/versions/</code> (0001 to 0006)</td></tr>
-    <tr><td>Tests</td><td><code>Backend/tests/unit/</code>, <code>Backend/tests/integration/</code>, fakes in <code>Backend/tests/fakes.py</code></td></tr>
+    <tr><td>Migrations</td><td><code>Backend/alembic/versions/</code> (0001 to 0007)</td></tr>
+    <tr><td>Tests</td><td><code>Backend/tests/unit/</code>, <code>Backend/tests/integration/</code>, fakes in <code>Backend/tests/fakes.py</code>; frontend <code>*.spec.ts</code> next to the code (<code>npm test</code>)</td></tr>
     <tr><td>Postgres container</td><td><code>Backend/docker-compose.yml</code>, <code>Backend/docker/initdb/</code></td></tr>
     <tr><td>Frontend bootstrap, routes</td><td><code>Frontend/Noesis/src/app/app.ts</code>, <code>app.config.ts</code>, <code>app.routes.ts</code></td></tr>
     <tr><td>API client, auth, errors</td><td><code>Frontend/Noesis/src/app/core/</code></td></tr>
@@ -736,7 +744,7 @@ stateDiagram-v2
     <tr><td>Shared UI, PDF viewer, helpers</td><td><code>Frontend/Noesis/src/app/shared/</code></td></tr>
     <tr><td>Design tokens and styles</td><td><code>Frontend/Noesis/src/styles/</code></td></tr>
     <tr><td>Dev proxy to backend</td><td><code>Frontend/Noesis/proxy.conf.json</code></td></tr>
-    <tr><td>Scripts and this document</td><td><code>setup.bat</code>, <code>run-noesis.bat</code>, <code>docs/architecture.html</code> (source of the PDF)</td></tr>
+    <tr><td>Scripts and docs</td><td><code>setup.bat</code>, <code>run-noesis.bat</code>, <code>README.md</code>, <code>docs/architecture.md</code>, <code>docs/architecture.html</code> (source of this PDF)</td></tr>
   </tbody>
 </table>
 
