@@ -8,7 +8,7 @@ import { apiErrorMessage } from '../../core/http/api-error';
 import { SlidesService } from '../../core/services/slides.service';
 import { ToastService } from '../../core/services/toast.service';
 import { Icon } from '../../shared/ui/icon';
-import { DEFAULT_DESIGN, FONT_LABELS, THEMES, designVars, effectiveAccent } from './slide-design';
+import { DEFAULT_DESIGN, FONT_LABELS, THEMES, designVars, effectiveAccent, slideDensity } from './slide-design';
 import { ReviseDialog, ReviseRequest } from './revise-dialog';
 import { downloadDeck } from './slides-download';
 
@@ -23,6 +23,8 @@ type Panel = 'none' | 'design' | 'edit';
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 const SAVE_DELAY_MS = 600;
+/** Smallest scale the auto-fit will shrink slide text to before letting it clip. */
+const MIN_FIT = 0.6;
 const MAX_SLIDES = 40;
 
 @Component({
@@ -31,8 +33,8 @@ const MAX_SLIDES = 40;
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(document:keydown)': 'onKey($event)', '(document:fullscreenchange)': 'onFullscreenChange()' },
   templateUrl: './slides-viewer-page.html',
-  // Slide and layout styles, then the Design / Edit side panels.
-  styleUrls: ['./slides-viewer-page.scss', './slides-viewer-panels.scss'],
+  // Slide and layout styles, the thumbnail strip, then the Design / Edit side panels.
+  styleUrls: ['./slides-viewer-page.scss', './slides-viewer-strip.scss', './slides-viewer-panels.scss'],
 })
 export class SlidesViewerPage {
   readonly deckId = input.required<string>();
@@ -76,6 +78,10 @@ export class SlidesViewerPage {
   protected readonly accent = computed(() => effectiveAccent(this.design()));
   protected readonly total = computed(() => (this.deck()?.slides.length ?? 0) + 1);
   protected readonly current = computed<Slide | null>(() => this.deck()?.slides[this.index() - 1] ?? null);
+  protected readonly density = computed(() => {
+    const s = this.current();
+    return s ? slideDensity(s) : 'normal';
+  });
   protected readonly filenames = computed(() => [
     ...new Set((this.deck()?.slides ?? []).flatMap((s) => s.sources.map((x) => x.filename))),
   ]);
@@ -98,10 +104,45 @@ export class SlidesViewerPage {
         strip.scrollLeft = left + thumb.offsetWidth - strip.clientWidth;
       }
     });
+    // Shrink the slide's text until nothing overflows the 16:9 frame (like "shrink text on
+    // overflow" in PowerPoint). Runs after every change to what or how the slide shows.
+    effect(() => {
+      this.current();
+      this.index();
+      this.design();
+      this.presenting();
+      this.panel();
+      const stage = this.stageEl()?.nativeElement;
+      if (stage) untracked(() => this.scheduleFit(stage));
+    });
+    const onResize = () => {
+      const stage = this.stageEl()?.nativeElement;
+      if (stage) this.scheduleFit(stage);
+    };
+    window.addEventListener('resize', onResize);
+
     inject(DestroyRef).onDestroy(() => {
+      window.removeEventListener('resize', onResize);
+      cancelAnimationFrame(this.fitFrame);
       this.flushSave();
       if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
     });
+  }
+
+  private fitFrame = 0;
+
+  /** Waits a frame so the new slide is laid out, then fits it. */
+  private scheduleFit(stage: HTMLElement): void {
+    cancelAnimationFrame(this.fitFrame);
+    this.fitFrame = requestAnimationFrame(() => {
+      const slide = stage.querySelector<HTMLElement>('.slide');
+      if (slide) fitSlide(slide);
+    });
+  }
+
+  /** Width of a thumbnail's placeholder line, roughly following the bullet's length. */
+  protected lineWidth(bullet: string): number {
+    return Math.min(92, 38 + bullet.length * 0.5);
   }
 
   protected load(): void {
@@ -462,4 +503,23 @@ export class SlidesViewerPage {
         return;
     }
   }
+}
+
+/**
+ * Steps the slide's --fit scale down until its content fits, starting from full size each
+ * time. Every text size on the slide is multiplied by --fit (see slides-viewer-page.scss).
+ */
+export function fitSlide(slide: HTMLElement): number {
+  let fit = 1;
+  slide.style.setProperty('--fit', '1');
+  // The bullet list can shrink (flex) and spill under the source line without the slide
+  // itself overflowing, so check both.
+  const list = slide.querySelector<HTMLElement>('.slide__bullets');
+  const overflows = () =>
+    slide.scrollHeight > slide.clientHeight + 1 || (!!list && list.scrollHeight > list.clientHeight + 1);
+  while (overflows() && fit > MIN_FIT) {
+    fit = Math.max(MIN_FIT, +(fit - 0.05).toFixed(2));
+    slide.style.setProperty('--fit', String(fit));
+  }
+  return fit;
 }

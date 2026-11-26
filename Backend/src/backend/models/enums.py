@@ -43,3 +43,15 @@ class AnswerStatus(StrEnum):
     INSUFFICIENT_CONTEXT = "insufficient_context"
     NEEDS_CLARIFICATION = "needs_clarification"
     ERROR = "error"
+
+
+class QuizDifficulty(StrEnum):
+    EASY = "easy"
+    MEDIUM = "medium"
+    HARD = "hard"
+
+
+class QuestionKind(StrEnum):
+    SINGLE = "single"  # four options, one correct
+    MULTIPLE = "multiple"  # four options, two or three correct ("select all that apply")
+    TRUE_FALSE = "true_false"  # options are always ["True", "False"]

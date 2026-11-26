@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../api/api.config';
-import { AttemptResult, Quiz, QuizCreate, QuizSummary } from '../api/models';
+import { AttemptResult, Quiz, QuizAnswer, QuizCreate, QuizSummary } from '../api/models';
 
 @Injectable({ providedIn: 'root' })
 export class QuizService {
@@ -25,11 +25,16 @@ export class QuizService {
     return this.http.delete<void>(`${this.base}/${id}`);
   }
 
-  submit(id: string, answers: (number | null)[]): Observable<AttemptResult> {
+  submit(id: string, answers: QuizAnswer[]): Observable<AttemptResult> {
     return this.http.post<AttemptResult>(`${this.base}/${id}/attempts`, { answers });
   }
 
   attempt(id: string, attemptId: string): Observable<AttemptResult> {
     return this.http.get<AttemptResult>(`${this.base}/${id}/attempts/${attemptId}`);
+  }
+
+  /** New quiz made of the questions this attempt got wrong or skipped. */
+  retryMissed(id: string, attemptId: string): Observable<Quiz> {
+    return this.http.post<Quiz>(`${this.base}/${id}/attempts/${attemptId}/retry`, {});
   }
 }

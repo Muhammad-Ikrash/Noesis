@@ -1,0 +1,35 @@
+// Thumbnail strip under the slide: miniature slides drawn in the deck's theme
+// (the --s-* colours are set on .strip in slides-viewer-page.scss).
+.strip {
+  display: flex; gap: var(--space-2); overflow-x: auto; margin-top: var(--space-4); padding: 2px 2px var(--space-2);
+  scroll-snap-type: x proximity;
+}
+.thumb {
+  flex: none; width: 150px; aspect-ratio: 16 / 9; display: flex; flex-direction: column; gap: 3px; padding: 8px 10px;
+  border: 1px solid var(--rule); border-radius: var(--radius-sm); background: var(--s-paper); overflow: hidden;
+  text-align: left; cursor: pointer; scroll-snap-align: start; transition: border-color .12s, box-shadow .12s, transform .12s;
+  &:hover { border-color: var(--rule-strong); transform: translateY(-1px); }
+  &.is-current { border-color: var(--pen); box-shadow: 0 0 0 2px var(--pen); }
+}
+.thumb__num { font-size: 9px; color: var(--s-muted); }
+.is-current .thumb__num { color: var(--s-pen); }
+.thumb__title {
+  flex: none; font-family: var(--s-head, var(--font-read)); font-size: 11px; line-height: 1.25; color: var(--s-text);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.thumb__rule { flex: none; display: block; width: 14px; height: 2px; margin: 2px 0 3px; border-radius: 1px; background: var(--s-pen); }
+.thumb__lines {
+  display: grid; gap: 3px; min-height: 0; overflow: hidden;
+  span { display: block; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--s-text) 22%, transparent); }
+}
+.thumb--title {
+  position: relative; justify-content: center;
+  .thumb__num { position: absolute; top: 6px; left: 10px; }
+  .thumb__title { font-size: 12px; -webkit-line-clamp: 3; }
+}
+.strip.align-center .thumb { align-items: center; text-align: center; .thumb__lines { justify-items: center; width: 100%; } }
+.thumb--add {
+  align-items: center; justify-content: center; border-style: dashed; color: var(--ink-2); font-size: var(--text-xs);
+  background: var(--surface);
+  &:hover { color: var(--pen); border-color: var(--pen); }
+}
