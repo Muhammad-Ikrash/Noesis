@@ -1,0 +1,782 @@
+<!doctype html>
+<!--
+  Source of "Noesis architecture.pdf" in the repository root.
+  Rebuild the PDF after editing (diagrams are Mermaid, rendered in the browser):
+
+  "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless=new --disable-gpu ^
+    --no-pdf-header-footer --virtual-time-budget=20000 ^
+    --print-to-pdf="Noesis architecture.pdf" docs\architecture.html
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Noesis architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #fbf8f1; --sunk: #f3eee3; --ink: #1e1a15; --ink-2: #4b443a; --ink-3: #7a7264;
+    --rule: #ddd3c1; --pen: #962f22; --pen-soft: #f3e3dd;
+  }
+  @page {
+    size: A4; margin: 18mm 17mm 20mm;
+    @top-left { content: "Noesis architecture"; font: 8pt 'Instrument Sans', sans-serif; color: #7a7264; }
+    @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 8pt 'Instrument Sans', sans-serif; color: #7a7264; }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { margin: 0; background: #fff; color: var(--ink); font: 10.5pt/1.55 'Instrument Sans', system-ui, sans-serif; }
+  main { max-width: 176mm; margin: 0 auto; }
+  h1, h2, h3 { font-family: 'Newsreader', Georgia, serif; font-weight: 400; color: var(--ink); break-after: avoid; }
+  h1 { font-size: 30pt; line-height: 1.1; margin: 0 0 8pt; }
+  h2 { font-size: 19pt; margin: 22pt 0 6pt; }
+  h3 { font-size: 14pt; margin: 16pt 0 4pt; }
+  h2 + p, h3 + p { break-before: avoid; }
+  p { margin: 0 0 7pt; }
+  ul { margin: 0 0 8pt; padding-left: 16pt; } li { margin: 2pt 0; }
+  .byline { display: flex; gap: 6pt; margin-bottom: 14pt; }
+  .chip { background: var(--sunk); border-radius: 4pt; padding: 1pt 6pt; font-size: 9pt; color: var(--ink-2); }
+  .lede { font-family: 'Newsreader', Georgia, serif; font-size: 13pt; color: var(--ink-2); }
+  code { font: 8.6pt 'IBM Plex Mono', ui-monospace, monospace; background: var(--sunk); border-radius: 3pt; padding: 0.5pt 3pt; white-space: nowrap; }
+  td code { white-space: normal; word-break: normal; overflow-wrap: normal; }
+  td:first-child code { white-space: nowrap; }
+  table { width: 100%; border-collapse: collapse; margin: 6pt 0 12pt; font-size: 9.4pt; break-inside: auto; }
+  tr { break-inside: avoid; }
+  th { text-align: left; font-weight: 500; color: var(--ink-2); background: var(--sunk); }
+  th, td { border: 1px solid var(--rule); padding: 4pt 6pt; vertical-align: top; }
+  thead { display: table-header-group; }
+  .new { display: inline-block; margin-left: 4pt; padding: 0 4pt; border-radius: 3pt; background: var(--pen-soft); color: var(--pen); font: 500 7.5pt 'IBM Plex Mono', monospace; vertical-align: 1pt; }
+  figure { margin: 8pt 0 12pt; padding: 10pt; border: 1px solid var(--rule); border-radius: 6pt; background: var(--paper); break-inside: avoid; text-align: center; }
+  figcaption { margin-top: 6pt; font-size: 8.5pt; color: var(--ink-3); text-align: left; }
+  pre.mermaid { margin: 0; white-space: normal; font: inherit; }
+  .mermaid { visibility: hidden; }
+  .mermaid[data-processed] { visibility: visible; }
+  .mermaid svg { max-width: 100% !important; height: auto; max-height: 232mm; }
+  figure.compact .mermaid svg { max-height: 150mm; }
+  figure.short .mermaid svg { max-height: 115mm; }
+  .note { border-left: 3px solid var(--pen); background: var(--paper); padding: 6pt 10pt; margin: 8pt 0 12pt; font-size: 9.6pt; }
+  .page-break { break-before: page; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Noesis architecture</h1>
+<div class="byline"><span class="chip">Nov 26, 2026</span><span class="chip">@coconut</span><span class="chip">updated: flashcards, slides, study tools, CPU/GPU embeddings</span></div>
+
+<h2>Overview</h2>
+<p class="lede">Noesis is a local study assistant. An Angular app calls a FastAPI backend, which stores PDFs on disk and in Postgres with pgvector, embeds text locally with Qwen3, and asks Groq for cited answers, quizzes, flashcards and slide decks.</p>
+<ul>
+  <li>Frontend: <code>Frontend/Noesis/src/app</code> (Angular 22, standalone components, signals, OnPush).</li>
+  <li>Backend: <code>Backend/src/backend</code> (FastAPI, SQLAlchemy 2, Alembic, python-pptx). Paths below are relative to these two folders unless written in full.</li>
+  <li>Database: Postgres 17 + pgvector in Docker (<code>Backend/docker-compose.yml</code>), schema in <code>Backend/alembic/versions/0001</code> to <code>0006</code>.</li>
+  <li>Models: Qwen3-Embedding-0.6B runs locally on a usable GPU, otherwise on the CPU in fp32 with a measured thread count. Groq (<code>llama-3.3-70b-versatile</code>) writes every generated text.</li>
+  <li>Auth is off: every request acts as one local user, created in <code>api/dependencies.py:27</code> (<code>get_current_user</code>).</li>
+  <li>One-click scripts in the repository root: <code>setup.bat</code> downloads everything, <code>run-noesis.bat</code> starts Docker, the database, backend and frontend.</li>
+</ul>
+<p>Line numbers point at where each class or function starts, as of this date. Items marked <span class="new">new</span> were added since the Nov 12 version.</p>
+
+<h2>Features at a glance</h2>
+<p>Every study tool follows the same path: a page calls one API service, a route calls one service module, and the service grounds its output in passages from the student's PDFs, keeping filename and page so citations survive deleting the PDF.</p>
+<table>
+  <thead><tr><th>Feature</th><th>Page (frontend)</th><th>API</th><th>Service (backend)</th></tr></thead>
+  <tbody>
+    <tr><td>Library: upload, progress, search, status filter, sort</td><td><code>features/library/</code></td><td><code>/documents</code></td><td><code>document_service</code>, <code>ingestion</code></td></tr>
+    <tr><td>Study chat with citations, copy answer, export session to Markdown, session filter, prompt starters</td><td><code>features/workspace/</code></td><td><code>/conversations</code></td><td><code>answer_service</code>, <code>conversation_service</code></td></tr>
+    <tr><td>Reader: citations, resume last page, search in PDF, download</td><td><code>features/reader/</code>, <code>shared/ui/pdf-viewer.ts</code></td><td><code>/documents/{id}/file</code></td><td>(file only)</td></tr>
+    <tr><td>Quizzes: generate, take, attempt history, resumable drafts</td><td><code>features/quiz/</code></td><td><code>/quizzes</code></td><td><code>quiz_service</code></td></tr>
+    <tr><td>Flashcards: generate decks, flip-card study, saved progress <span class="new">new</span></td><td><code>features/flashcards/</code></td><td><code>/flashcards</code></td><td><code>flashcard_service</code></td></tr>
+    <tr><td>Slides: generate, design, edit, revise with AI, present, export .pptx <span class="new">new</span></td><td><code>features/slides/</code></td><td><code>/slides</code></td><td><code>slides_service</code>, <code>slides_export</code></td></tr>
+    <tr><td>Settings: default retrieval scope</td><td><code>core/services/settings.service.ts</code></td><td><code>/settings</code></td><td>route only</td></tr>
+  </tbody>
+</table>
+
+<h2>Components</h2>
+<p>Each layer only calls the one below it: pages call API services, routes call services, services call providers and the database. Per-browser conveniences (theme, quiz drafts, last page read) live in <code>localStorage</code>, never on the server.</p>
+<figure>
+<pre class="mermaid">
+flowchart TB
+  subgraph FE["Angular frontend · Frontend/Noesis/src/app"]
+    direction TB
+    Pages["Pages · features/*<br/>library, workspace, reader,<br/>quiz, flashcards, slides"] --> ApiSvc["API services<br/>core/services/*"]
+    Pages --> Shared["Shared UI<br/>PdfViewer, ConfirmDialog, RichText"]
+    Pages --> LS[("localStorage<br/>theme, quiz drafts, last page")]
+    ApiSvc --> Interceptors["authInterceptor, errorInterceptor<br/>core/auth, core/http"]
+  end
+  Interceptors -->|"HTTP /api/v1 · dev proxy"| Routes
+  subgraph BE["FastAPI backend · Backend/src/backend"]
+    direction TB
+    Routes["Routes · api/routes/*<br/>documents, conversations, chat,<br/>quizzes, flashcards, slides, settings"] --> Services["Services · services/*"]
+    Routes --> Deps["Dependencies<br/>api/dependencies.py"]
+    Services --> RAG["Prompts + citation checks<br/>rag/pipeline.py, rag/prompts/*"]
+    Services --> Export["PowerPoint export<br/>services/slides_export.py"]
+    Services --> Providers["Providers · rag/providers/*<br/>chosen by rag/factory.py"]
+  end
+  Providers --> Qwen["Qwen3-Embedding-0.6B<br/>GPU if usable, else CPU fp32"]
+  Providers --> Groq["Groq API<br/>llama-3.3-70b"]
+  Services --> DB[("Postgres + pgvector")]
+  Services --> Disk[("STORAGE_DIR<br/>copied PDFs")]
+</pre>
+<figcaption>Components and the direction of calls.</figcaption>
+</figure>
+<table>
+  <thead><tr><th>Layer</th><th>Folder</th><th>Job</th></tr></thead>
+  <tbody>
+    <tr><td>Pages</td><td><code>features/</code></td><td>Screen state (signals), user actions</td></tr>
+    <tr><td>API services</td><td><code>core/services/</code></td><td>One <code>HttpClient</code> call per endpoint, no logic</td></tr>
+    <tr><td>Shared helpers</td><td><code>shared/</code></td><td>UI pieces, Markdown export, downloads, <code>localStorage</code> wrapper</td></tr>
+    <tr><td>Routes</td><td><code>api/routes/</code></td><td>Validate input, call a service, map errors to HTTP codes</td></tr>
+    <tr><td>Services</td><td><code>services/</code></td><td>Business logic, database work, PowerPoint export</td></tr>
+    <tr><td>RAG</td><td><code>rag/</code></td><td>Prompts, answer normalising, provider interfaces and implementations</td></tr>
+    <tr><td>Models</td><td><code>models/</code></td><td>SQLAlchemy tables</td></tr>
+    <tr><td>Schemas</td><td><code>schemas/</code></td><td>Pydantic request and response shapes</td></tr>
+  </tbody>
+</table>
+
+<h2 class="page-break">Backend classes</h2>
+<p>The backend has three groups of classes: database models that hold the data, service modules that hold the logic, and provider classes behind interfaces so the embedder and LLM can be swapped.</p>
+
+<h3>Data model</h3>
+<p>A user owns documents, conversations, quizzes, flashcard decks and slide decks. A document is split into pages and chunks. Everything generated from a PDF (message sources, quiz questions, flashcards, slide citations) keeps a snapshot of filename and page, so it survives deleting the document.</p>
+<figure>
+<pre class="mermaid">
+classDiagram
+  direction LR
+  class User {
+    email: str
+    default_retrieval_scope
+  }
+  class Document {
+    filename: str
+    sha256: str
+    status: DocumentStatus
+    page_count: int
+    progress_done / progress_total
+  }
+  class DocumentPage {
+    page_number: int
+    needs_ocr: bool
+  }
+  class DocumentChunk {
+    page_number: int
+    kind: ChunkKind
+    text: str
+    embedding: vector(1024)
+  }
+  class Conversation {
+    title: str
+    mode: LearningMode
+    retrieval_scope
+  }
+  class Message {
+    role: MessageRole
+    content: str
+    answer_status
+    supplementary: str
+  }
+  class MessageSource {
+    position: int
+    filename: str
+    page_number: int
+    quote: str
+  }
+  User "1" --> "*" Document
+  User "1" --> "*" Conversation
+  Document "1" *-- "*" DocumentPage
+  Document "1" *-- "*" DocumentChunk
+  Conversation "*" -- "*" Document : conversation_documents
+  Conversation "1" *-- "*" Message
+  Message "1" *-- "*" MessageSource
+  MessageSource ..> DocumentChunk : snapshot of
+</pre>
+<figcaption>Documents and chat. <code>progress_done</code>/<code>progress_total</code> (migration 0003) drive the library's progress bars.</figcaption>
+</figure>
+<figure class="compact">
+<pre class="mermaid">
+classDiagram
+  direction LR
+  class Quiz {
+    title: str
+    topic: str
+  }
+  class QuizQuestion {
+    prompt: str
+    options: list~str~
+    correct_index: int
+    explanation: str
+    filename, page_number
+  }
+  class QuizAttempt {
+    answers: list~int~
+    score: int
+  }
+  class FlashcardDeck {
+    title: str
+    topic: str
+  }
+  class Flashcard {
+    front: str
+    back: str
+    known: bool
+    reviewed_at
+    filename, page_number
+  }
+  class SlideDeck {
+    title: str
+    subtitle: str
+    topic: str
+    design: JSONB
+  }
+  class Slide {
+    position: int
+    title: str
+    bullets: list~str~
+    notes: str
+    sources: JSONB
+  }
+  User "1" --> "*" Quiz
+  User "1" --> "*" FlashcardDeck
+  User "1" --> "*" SlideDeck
+  Quiz "1" *-- "*" QuizQuestion
+  Quiz "1" *-- "*" QuizAttempt
+  FlashcardDeck "1" *-- "*" Flashcard
+  SlideDeck "1" *-- "*" Slide
+</pre>
+<figcaption>Study tools. Each question, card and slide stores where it came from; a slide's <code>sources</code> is a list of {document_id, filename, page_number}.</figcaption>
+</figure>
+<table>
+  <thead><tr><th>Class</th><th>File</th><th>Holds</th></tr></thead>
+  <tbody>
+    <tr><td><code>User</code></td><td><code>models/user.py:8</code></td><td>The local user and the default scope setting</td></tr>
+    <tr><td><code>Document</code></td><td><code>models/document.py:23</code></td><td>One uploaded PDF, its status and ingestion progress</td></tr>
+    <tr><td><code>DocumentPage</code></td><td><code>models/document.py:58</code></td><td>Per-page text stats, <code>needs_ocr</code> flag</td></tr>
+    <tr><td><code>DocumentChunk</code></td><td><code>models/document_chunk.py:25</code></td><td>A chunk of one page plus its 1024-dim vector (HNSW index)</td></tr>
+    <tr><td><code>Conversation</code></td><td><code>models/conversation.py:26</code></td><td>A chat, its mode, scope and attached PDFs</td></tr>
+    <tr><td><code>Message</code>, <code>MessageSource</code></td><td><code>models/message.py:25</code>, <code>:72</code></td><td>Questions and answers; citation snapshots</td></tr>
+    <tr><td><code>Quiz</code>, <code>QuizQuestion</code>, <code>QuizAttempt</code></td><td><code>models/quiz.py:11</code>, <code>:38</code>, <code>:61</code></td><td>Quizzes, their questions and graded attempts</td></tr>
+    <tr><td><code>FlashcardDeck</code>, <code>Flashcard</code> <span class="new">new</span></td><td><code>models/flashcard.py:10</code>, <code>:32</code></td><td>Decks and cards with “known” progress</td></tr>
+    <tr><td><code>SlideDeck</code>, <code>Slide</code> <span class="new">new</span></td><td><code>models/slides.py:11</code>, <code>:36</code></td><td>Decks with design settings; slides with bullets, notes, citations</td></tr>
+    <tr><td>Enums</td><td><code>models/enums.py</code></td><td><code>DocumentStatus</code>, <code>LearningMode</code>, <code>RetrievalScope</code>, <code>AnswerStatus</code>, …</td></tr>
+    <tr><td><code>Base</code>, <code>UUIDPk</code>, <code>Timestamps</code></td><td><code>database/base.py:20</code>, <code>:24</code>, <code>:28</code></td><td>Shared id and timestamp columns</td></tr>
+  </tbody>
+</table>
+
+<h3>Providers</h3>
+<p>Services depend on the two Protocols, not on Qwen3 or Groq directly; <code>rag/factory.py</code> picks the implementation from settings.</p>
+<figure>
+<pre class="mermaid">
+classDiagram
+  direction LR
+  class EmbeddingProvider {
+    &lt;&lt;Protocol&gt;&gt;
+    dimension: int
+    embed_documents(texts)
+    embed_query(text)
+  }
+  class LLMProvider {
+    &lt;&lt;Protocol&gt;&gt;
+    complete(messages, json_mode) LLMResult
+  }
+  class Qwen3EmbeddingProvider {
+    -_resolve_device()
+    -_load()
+    -_encode(texts, prompt)
+  }
+  class cpu_tuning {
+    calibrate_threads()
+    read_cached()
+    write_cached()
+  }
+  class GroqLLMProvider {
+    -_client: OpenAI
+    max_retries = 2
+  }
+  class Factory {
+    build_embedder(settings)
+    build_llm(settings)
+    get_embedder()
+    get_llm()
+  }
+  EmbeddingProvider <|.. Qwen3EmbeddingProvider
+  LLMProvider <|.. GroqLLMProvider
+  Qwen3EmbeddingProvider --> cpu_tuning : on CPU
+  Factory ..> Qwen3EmbeddingProvider : creates
+  Factory ..> GroqLLMProvider : creates
+</pre>
+<figcaption>Tests swap in <code>FakeEmbedder</code> and <code>FakeLLM</code> from <code>Backend/tests/fakes.py</code>.</figcaption>
+</figure>
+<table>
+  <thead><tr><th>Class</th><th>File</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td><code>LLMProvider</code>, <code>EmbeddingProvider</code>, <code>OCRProvider</code>, <code>ChatMessage</code>, <code>LLMResult</code></td><td><code>rag/interfaces.py:22</code>, <code>:30</code>, <code>:39</code>, <code>:10</code>, <code>:16</code></td><td>The contracts services use</td></tr>
+    <tr><td><code>Qwen3EmbeddingProvider</code></td><td><code>rag/providers/embeddings/qwen3.py:30</code></td><td>Picks the device (<code>_resolve_device</code> <code>:57</code>), loads in fp32, one text per pass on the CPU</td></tr>
+    <tr><td><code>calibrate_threads</code> <span class="new">new</span></td><td><code>rag/providers/embeddings/cpu_tuning.py:102</code></td><td>Times CPU thread counts once per machine, caches the winner</td></tr>
+    <tr><td><code>GroqLLMProvider</code></td><td><code>rag/providers/llm/groq.py:10</code></td><td>OpenAI-compatible client; rate limits become a readable error</td></tr>
+    <tr><td>Factory functions</td><td><code>rag/factory.py:17</code> (<code>build_llm</code>), <code>:33</code> (<code>build_embedder</code>)</td><td>Read settings, validate dimension, pass CPU settings</td></tr>
+  </tbody>
+</table>
+
+<h3>Choosing the embedding device <span class="new">new</span></h3>
+<p>The first upload or question loads the model. <code>torch.cuda.is_available()</code> can be true for a GPU the installed PyTorch cannot run (an RTX 50-series card with a cu126 build), so a tiny test operation decides. On the CPU, fp32 with one text per pass and the measured thread count is about 13 times faster than the bf16 default on a Ryzen 5 5600.</p>
+<figure class="short">
+<pre class="mermaid">
+flowchart TB
+  Start(["First embed call"]) --> Dev{"EMBEDDING_DEVICE"}
+  Dev -->|cpu| CPU
+  Dev -->|cuda / auto| Probe{"Tiny GPU op works?"}
+  Probe -->|yes| GPU["Load fp32 on GPU<br/>batch = EMBEDDING_BATCH_SIZE"]
+  Probe -->|"no, cuda"| Err["ProviderError:<br/>GPU can't be used"]
+  Probe -->|"no, auto"| CPU["Load fp32 on CPU<br/>one text per pass"]
+  CPU --> Threads{"EMBEDDING_CPU_THREADS"}
+  Threads -->|"set"| Use["Use that many threads"]
+  Threads -->|"0 = auto"| Cache{"Cached result for this<br/>CPU + torch + dtype?"}
+  Cache -->|yes| Use
+  Cache -->|no| Time["Time default, half, all threads<br/>save data/embedding-cpu-calibration.json"] --> Use
+</pre>
+<figcaption>Device and thread selection in <code>qwen3.py</code> and <code>cpu_tuning.py</code>. <code>EMBEDDING_CPU_DTYPE=bf16</code> is opt-in for CPUs with native bf16.</figcaption>
+</figure>
+
+<h3>Services</h3>
+<p>Services are plain modules of functions, called by routes with a database session. The three generators share one pattern: pick passages, ask Groq for JSON that cites passage ids (<code>S1</code>, <code>S2</code>, …), drop anything malformed or uncited, then store snapshots.</p>
+<figure class="compact">
+<pre class="mermaid">
+classDiagram
+  direction LR
+  class document_service {
+    upload_document()
+    delete_document()
+    mark_missing_files()
+  }
+  class ingestion {
+    ingest_document()
+    pending_document_ids()
+  }
+  class pdf_extraction {
+    extract_pdf()
+  }
+  class chunking {
+    chunk_pages()
+  }
+  class retrieval {
+    retrieve()
+  }
+  class answer_service {
+    ask()
+  }
+  class pipeline {
+    build_messages()
+    normalize()
+  }
+  class quiz_service {
+    generate_quiz()
+    submit_attempt()
+  }
+  class flashcard_service {
+    generate_deck()
+    mark_card()
+    reset_progress()
+  }
+  class slides_service {
+    generate_deck()
+    update_deck()
+    replace_slides()
+    revise_deck()
+  }
+  class slides_export {
+    build_pptx()
+  }
+  document_service --> ingestion : schedules
+  ingestion --> pdf_extraction
+  ingestion --> chunking
+  answer_service --> retrieval
+  answer_service --> pipeline
+  quiz_service --> retrieval
+  flashcard_service --> retrieval
+  slides_service --> retrieval
+  slides_service ..> slides_export : download
+</pre>
+<figcaption>Every generator and <code>ingestion</code> also call the providers; arrows to them are left out for readability.</figcaption>
+</figure>
+<table>
+  <thead><tr><th>Function</th><th>File</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>upload_document</code></td><td><code>services/document_service.py:37</code></td><td>Checks size and PDF header, sha256 dedupe, saves the file, inserts <code>Document(pending)</code></td></tr>
+    <tr><td><code>delete_document</code>, <code>mark_missing_files</code></td><td><code>services/document_service.py:125</code>, <code>:136</code></td><td>Delete a PDF (citations keep their snapshot); mark lost files <code>missing</code> at startup</td></tr>
+    <tr><td><code>ingest_document</code></td><td><code>services/ingestion.py:50</code></td><td>Claims the document, extracts, chunks, embeds in batches of <code>EMBEDDING_BATCH_SIZE</code> (4) and saves progress after each</td></tr>
+    <tr><td><code>pending_document_ids</code></td><td><code>services/ingestion.py:173</code></td><td>At startup, finds unfinished documents to resume</td></tr>
+    <tr><td><code>extract_pdf</code>, <code>chunk_pages</code></td><td><code>services/pdf_extraction.py:53</code>, <code>services/chunking.py:105</code></td><td>Text per page (PyMuPDF); page-bound chunks (1800 chars, 200 overlap), tables kept whole</td></tr>
+    <tr><td><code>retrieve</code></td><td><code>services/retrieval.py:34</code></td><td>Embeds the query, cosine search in pgvector, filters by scope</td></tr>
+    <tr><td><code>ask</code></td><td><code>services/answer_service.py:41</code></td><td>Full chat turn: history, retrieval, Groq, citation check, save</td></tr>
+    <tr><td><code>build_messages</code>, <code>normalize</code></td><td><code>rag/pipeline.py:44</code>, <code>:65</code></td><td>Builds the prompt; validates <code>S#</code> citations and renumbers them <code>[n]</code></td></tr>
+    <tr><td><code>generate_quiz</code>, <code>submit_attempt</code></td><td><code>services/quiz_service.py:104</code>, <code>:201</code></td><td>Builds questions from chunks; grades answers</td></tr>
+    <tr><td><code>generate_deck</code>, <code>mark_card</code>, <code>reset_progress</code> <span class="new">new</span></td><td><code>services/flashcard_service.py:80</code>, <code>:176</code>, <code>:188</code></td><td>Writes cards from passages; saves “got it / still learning”; resets a deck</td></tr>
+    <tr><td><code>generate_deck</code> <span class="new">new</span></td><td><code>services/slides_service.py:181</code></td><td>Passages in reading order, asks for exactly N slides, tops up missing ones (up to 2 more requests)</td></tr>
+    <tr><td><code>update_deck</code>, <code>replace_slides</code> <span class="new">new</span></td><td><code>services/slides_service.py:308</code>, <code>:327</code></td><td>Title, subtitle and design; the edited slide list in order (citations kept, or restored on undo)</td></tr>
+    <tr><td><code>revise_deck</code> <span class="new">new</span></td><td><code>services/slides_service.py:462</code></td><td>Rewrites one slide or the deck from an instruction, using the cited pages plus passages that match it</td></tr>
+    <tr><td><code>build_pptx</code> <span class="new">new</span></td><td><code>services/slides_export.py:146</code></td><td>16:9 PowerPoint with the deck's theme, fonts, layout and speaker notes</td></tr>
+    <tr><td>Conversations</td><td><code>services/conversation_service.py:30</code> onward</td><td>Create, list, update, delete, history for prompts</td></tr>
+    <tr><td>App startup</td><td><code>main.py:29</code> (<code>lifespan</code>), <code>:51</code> (<code>create_app</code>)</td><td>Checks providers, marks missing files, resumes ingestion</td></tr>
+    <tr><td>Settings</td><td><code>core/config.py:17</code></td><td>All <code>.env</code> values</td></tr>
+    <tr><td>Prompts</td><td><code>rag/prompts/</code></td><td><code>basic</code>, <code>extensive</code>, <code>quiz</code>, <code>flashcards</code>, <code>slides</code> (generate, top-up, revise), <code>common</code> (security rules)</td></tr>
+  </tbody>
+</table>
+
+<h3>HTTP API <span class="new">new</span></h3>
+<p>All routes live under <code>/api/v1</code>. Generators return <code>422</code> with a readable message when nothing valid comes back, and <code>503</code> when Groq is unavailable or rate-limited.</p>
+<table>
+  <thead><tr><th>Resource</th><th>Endpoints</th><th>File</th></tr></thead>
+  <tbody>
+    <tr><td>Documents</td><td><code>POST /documents</code>, <code>GET /documents</code>, <code>GET /documents/{id}</code>, <code>GET /documents/{id}/file</code>, <code>DELETE /documents/{id}</code></td><td><code>api/routes/documents.py:27</code></td></tr>
+    <tr><td>Conversations</td><td><code>POST</code>, <code>GET</code>, <code>GET /{id}</code>, <code>PATCH /{id}</code>, <code>DELETE /{id}</code></td><td><code>api/routes/conversations.py:38</code></td></tr>
+    <tr><td>Chat</td><td><code>POST /conversations/{id}/messages</code></td><td><code>api/routes/chat.py:15</code></td></tr>
+    <tr><td>Quizzes</td><td><code>POST</code>, <code>GET</code>, <code>GET /{id}</code>, <code>DELETE /{id}</code>, <code>POST /{id}/attempts</code>, <code>GET /{id}/attempts/{attempt_id}</code></td><td><code>api/routes/quizzes.py:56</code></td></tr>
+    <tr><td>Flashcards</td><td><code>POST</code>, <code>GET</code>, <code>GET /{id}</code>, <code>DELETE /{id}</code>, <code>PATCH /{id}/cards/{card_id}</code>, <code>POST /{id}/reset</code></td><td><code>api/routes/flashcards.py:40</code></td></tr>
+    <tr><td>Slides</td><td><code>POST</code>, <code>GET</code>, <code>GET /{id}</code>, <code>PATCH /{id}</code>, <code>PUT /{id}/slides</code>, <code>POST /{id}/revise</code>, <code>GET /{id}/pptx</code>, <code>DELETE /{id}</code></td><td><code>api/routes/slides.py:58</code></td></tr>
+    <tr><td>Settings</td><td><code>GET /settings</code>, <code>PUT /settings</code></td><td><code>api/routes/settings.py:9</code></td></tr>
+  </tbody>
+</table>
+
+<h2 class="page-break">Frontend classes</h2>
+<p>Pages own screen state as signals and call injectable API services; every HTTP call passes through the auth and error interceptors. Shared helpers keep the pages small.</p>
+<figure class="compact">
+<pre class="mermaid">
+classDiagram
+  direction LR
+  class LibraryPage {
+    query, statusFilter, sort
+    visibleDocs: computed
+  }
+  class WorkspacePage {
+    railQuery
+    send()
+    exportMarkdown()
+  }
+  class ChatMessage {
+    copy()
+  }
+  class ReaderPage {
+    rememberPage()
+    download()
+  }
+  class PdfViewer {
+    goTo(page, quote)
+    runFind()
+    pageChange: output
+  }
+  class QuizRunnerPage {
+    attempts, bestScore
+    draft in localStorage
+  }
+  class DeckStudyPage {
+    flip()
+    mark(known)
+    start(filter, shuffle)
+  }
+  class SlidesViewerPage {
+    design, panel
+    flushSave()
+    onRevise()
+    undoRevision()
+  }
+  class ReviseDialog
+  class DocumentsService
+  class ConversationsService
+  class QuizService
+  class FlashcardService
+  class SlidesService
+  LibraryPage --> DocumentsService
+  WorkspacePage *-- ChatMessage
+  WorkspacePage *-- PdfViewer
+  WorkspacePage --> ConversationsService
+  ReaderPage *-- PdfViewer
+  ReaderPage --> DocumentsService
+  QuizRunnerPage --> QuizService
+  DeckStudyPage --> FlashcardService
+  SlidesViewerPage *-- ReviseDialog
+  SlidesViewerPage --> SlidesService
+</pre>
+<figcaption>Main pages and the services they call. List pages (quiz, flashcard and slide lists) follow the same maker-panel pattern and call the same services.</figcaption>
+</figure>
+<table>
+  <thead><tr><th>Class</th><th>File</th><th>Job</th></tr></thead>
+  <tbody>
+    <tr><td><code>LibraryPage</code></td><td><code>features/library/library-page.ts:34</code></td><td>PDF list, upload, progress polling, search, status filter, sort, “Study together”, “Quiz me”, “Flashcards”, “Slides”</td></tr>
+    <tr><td><code>UploadDropzone</code></td><td><code>features/library/upload-dropzone.ts:76</code></td><td>Drag-and-drop or browse for PDFs</td></tr>
+    <tr><td><code>WorkspacePage</code></td><td><code>features/workspace/workspace-page.ts:45</code></td><td>Sessions rail with filter, chat, prompt starters, export to Markdown, quiz and flashcards from a chat</td></tr>
+    <tr><td><code>Composer</code>, <code>ChatMessage</code>, <code>AttachDialog</code></td><td><code>features/workspace/composer.ts:59</code>, <code>chat-message.ts:18</code>, <code>attach-dialog.ts:61</code></td><td>Question box and toggles; one answer with copy button; choose a chat's PDFs</td></tr>
+    <tr><td><code>ReaderPage</code></td><td><code>features/reader/reader-page.ts:69</code></td><td>Full-screen viewer at <code>?page=&amp;quote=</code>, resumes the last page, downloads the PDF</td></tr>
+    <tr><td><code>PdfViewer</code></td><td><code>shared/ui/pdf-viewer.ts:48</code></td><td>pdf.js rendering, zoom, page jump, quote highlight, search within the PDF</td></tr>
+    <tr><td><code>QuizListPage</code>, <code>QuizRunnerPage</code>, <code>QuizResultPage</code></td><td><code>features/quiz/quiz-list-page.ts:20</code>, <code>quiz-runner-page.ts:182</code>, <code>quiz-result-page.ts:88</code></td><td>Make, take (with history and resumable drafts) and review quizzes</td></tr>
+    <tr><td><code>DeckListPage</code>, <code>DeckStudyPage</code> <span class="new">new</span></td><td><code>features/flashcards/deck-list-page.ts:20</code>, <code>deck-study-page.ts:22</code></td><td>Make decks; flip, mark, shuffle, filter, reset</td></tr>
+    <tr><td><code>SlidesListPage</code>, <code>SlidesViewerPage</code>, <code>ReviseDialog</code> <span class="new">new</span></td><td><code>features/slides/slides-list-page.ts:21</code>, <code>slides-viewer-page.ts:37</code>, <code>revise-dialog.ts:73</code></td><td>Make decks; view, present, Design and Edit panels with autosave, revise with AI and undo, download .pptx</td></tr>
+    <tr><td>Slide design helpers <span class="new">new</span></td><td><code>features/slides/slide-design.ts:33</code>, <code>slides-download.ts:14</code></td><td>Theme palettes as CSS variables (same as the export); <code>.pptx</code> download</td></tr>
+    <tr><td>Shared helpers</td><td><code>shared/answer-text.ts:15</code>, <code>download.ts:2</code>, <code>local-store.ts:9</code></td><td>Answer and session Markdown; Blob downloads and copy; safe <code>localStorage</code> (<code>noesis.</code> prefix)</td></tr>
+    <tr><td>API services</td><td><code>core/services/*.service.ts</code></td><td><code>DocumentsService</code>, <code>ConversationsService</code>, <code>QuizService</code>, <code>FlashcardService</code>, <code>SlidesService</code>, <code>SettingsService</code></td></tr>
+    <tr><td><code>ThemeService</code>, <code>ToastService</code></td><td><code>core/services/theme.service.ts:7</code>, <code>toast.service.ts:11</code></td><td>Light/dark theme (<code>noesis.theme</code>), notifications</td></tr>
+    <tr><td><code>AuthService</code>, <code>authInterceptor</code>, <code>authGuard</code></td><td><code>core/auth/auth.service.ts:13</code>, <code>auth.interceptor.ts:6</code>, <code>auth.guard.ts:6</code></td><td>Auth placeholders; <code>AUTH_ENABLED = false</code></td></tr>
+    <tr><td><code>errorInterceptor</code>, <code>apiErrorMessage</code></td><td><code>core/http/error.interceptor.ts:8</code>, <code>api-error.ts:4</code></td><td>Readable error messages</td></tr>
+    <tr><td>Routes</td><td><code>app.routes.ts:4</code></td><td><code>/library</code>, <code>/study/:id</code>, <code>/read/:id</code>, <code>/quizzes/…</code>, <code>/flashcards/:id</code>, <code>/slides/:id</code></td></tr>
+  </tbody>
+</table>
+
+<h2 class="page-break">Feature flows</h2>
+<p>Uploads return immediately and are processed in the background; chat and every generator are synchronous and wait for Groq.</p>
+
+<h3>Upload and ingestion</h3>
+<figure>
+<pre class="mermaid">
+sequenceDiagram
+  actor S as Student
+  participant LP as LibraryPage
+  participant R as routes/documents.py
+  participant Svc as document_service
+  participant DB as Postgres
+  participant Ing as ingestion
+  participant Q as Qwen3EmbeddingProvider
+  S->>LP: drop PDF
+  LP->>R: POST /documents
+  R->>Svc: upload_document()
+  Svc->>Svc: size + PDF header check, sha256
+  alt same file already uploaded
+    Svc-->>R: existing document (created=false)
+  else new file
+    Svc->>DB: save copy, INSERT Document(pending)
+    R-)Ing: background task ingest_document(id)
+  end
+  R-->>LP: 201 DocumentOut(pending)
+  Ing->>DB: claim: pending to processing
+  Ing->>Ing: extract_pdf() then chunk_pages()
+  loop batches of EMBEDDING_BATCH_SIZE chunks
+    Ing->>Q: embed_documents(texts)
+    Q-->>Ing: 1024-dim vectors
+    Ing->>DB: progress_done / progress_total
+  end
+  Ing->>DB: INSERT pages + chunks, status=completed
+  loop every 2.5 s while any document is pending/processing
+    LP->>R: GET /documents
+    R-->>LP: statuses + progress
+  end
+</pre>
+<figcaption>On any error the chunks are deleted and the status becomes <code>failed</code> with the message. Route <code>api/routes/documents.py:27</code>, <code>ingest_document</code> at <code>services/ingestion.py:50</code>.</figcaption>
+</figure>
+
+<h3>Asking a question</h3>
+<figure>
+<pre class="mermaid">
+sequenceDiagram
+  actor S as Student
+  participant WP as WorkspacePage
+  participant R as routes/chat.py
+  participant A as answer_service.ask
+  participant Ret as retrieval
+  participant DB as Postgres + pgvector
+  participant P as pipeline
+  participant G as GroqLLMProvider
+  S->>WP: type question (mode, scope)
+  WP->>R: POST /conversations/{id}/messages
+  R->>A: ask()
+  A->>DB: load recent history (HISTORY_MAX_MESSAGES)
+  A->>Ret: retrieve(query, scope)
+  Ret->>DB: embed query, cosine search, top 8
+  alt basic mode and no chunks
+    A-->>R: insufficient_context (Groq not called)
+  else
+    A->>P: build_messages(prompt, history, S1..S8)
+    A->>G: complete(json_mode)
+    G-->>A: JSON answer citing passage ids
+    A->>P: normalize(): drop invented ids, renumber [n]
+  end
+  A->>DB: INSERT Message + MessageSource snapshots
+  R-->>WP: AskResponse(answer, sources)
+  S->>WP: click [n], copy answer, or export session
+</pre>
+<figcaption>In basic mode an answer with no valid citation becomes <code>insufficient_context</code>; in extensive mode uncited text moves to <code>supplementary</code>. Copy and Markdown export run in the browser (<code>shared/answer-text.ts</code>).</figcaption>
+</figure>
+
+<h3>Quizzes</h3>
+<figure>
+<pre class="mermaid">
+sequenceDiagram
+  participant QP as Quiz pages
+  participant LS as localStorage
+  participant R as routes/quizzes.py
+  participant QS as quiz_service
+  participant G as GroqLLMProvider
+  QP->>R: POST /quizzes (document_ids, topic?, count)
+  R->>QS: generate_quiz(): topic search or random passages
+  QS->>G: complete(quiz prompt, json_mode)
+  QS-->>QP: QuizOut (no answer key) + past attempts
+  loop while answering
+    QP->>LS: save draft (quizDraft.id)
+  end
+  QP->>R: POST /quizzes/{id}/attempts (answers)
+  R->>QS: submit_attempt(): grade, INSERT QuizAttempt
+  R-->>QP: score + answer key + explanations
+  QP->>LS: remove draft
+</pre>
+<figcaption>Routes <code>api/routes/quizzes.py:56</code> and <code>:113</code>; a draft only restores for the same questions in the same order.</figcaption>
+</figure>
+
+<h3>Flashcards <span class="new">new</span></h3>
+<figure>
+<pre class="mermaid">
+sequenceDiagram
+  actor S as Student
+  participant DL as DeckListPage
+  participant DS as DeckStudyPage
+  participant R as routes/flashcards.py
+  participant FS as flashcard_service
+  participant G as GroqLLMProvider
+  S->>DL: pick PDFs, topic?, 5 to 30 cards
+  DL->>R: POST /flashcards
+  R->>FS: generate_deck(): passages, then Groq
+  FS->>G: complete(flashcards prompt, json_mode)
+  FS->>FS: drop uncited, oversized or duplicate cards
+  R-->>DS: DeckOut (cards with filename + page)
+  loop each card
+    S->>DS: Space to flip, 1 still learning, 2 got it
+    DS->>R: PATCH /flashcards/{id}/cards/{card} (known)
+  end
+  DS-->>S: run summary, study the cards still learning
+</pre>
+<figcaption>Marking is optimistic and rolls back if saving fails. Reopening a deck with progress starts with the cards not yet known; <code>POST /{id}/reset</code> clears progress.</figcaption>
+</figure>
+
+<h3>Slides <span class="new">new</span></h3>
+<figure>
+<pre class="mermaid">
+sequenceDiagram
+  actor S as Student
+  participant V as SlidesViewerPage
+  participant R as routes/slides.py
+  participant SS as slides_service
+  participant G as GroqLLMProvider
+  participant X as slides_export
+  S->>R: POST /slides (PDFs, topic?, 3 to 15 slides)
+  R->>SS: generate_deck(): passages in reading order
+  SS->>G: write exactly N slides
+  opt fewer slides than asked
+    SS->>G: write the missing ones (up to 2 more requests)
+  end
+  SS-->>V: deck with title slide data, slides, citations
+  S->>V: Design panel or Edit mode
+  V->>R: PATCH /slides/{id} (title, subtitle, design), autosaved
+  V->>R: PUT /slides/{id}/slides (edited list in order), autosaved
+  S->>V: Revise with AI (this slide or whole deck)
+  V->>R: POST /slides/{id}/revise (instruction)
+  R->>SS: revise_deck(): cited pages + matching passages
+  SS->>G: revise prompt
+  R-->>V: revised deck, Undo restores the snapshot
+  S->>V: .pptx
+  V->>R: GET /slides/{id}/pptx
+  R->>X: build_pptx(deck, design)
+  X-->>S: editable PowerPoint
+</pre>
+<figcaption>The viewer is the source of truth while editing; saves are debounced and a download first flushes pending edits. Presenting covers the window and adds full screen when the browser allows it.</figcaption>
+</figure>
+
+<h3>Reader <span class="new">new</span></h3>
+<p>The reader opens at an explicit <code>?page=</code> (citations, quiz review) or else at the last page read in this browser (<code>noesis.lastPage.&lt;id&gt;</code>, saved 400 ms after scrolling stops). Search loads each page's text once with pdf.js, highlights matches in their own colour so citation highlights stay, and notes image-only pages that have no searchable text. Download fetches <code>/documents/{id}/file</code> and saves it under the original filename.</p>
+
+<h2>Status updates: polling</h2>
+<p><code>LibraryPage</code> calls <code>GET /documents</code> every 2.5 seconds, but only while at least one PDF is <code>pending</code> or <code>processing</code>, and stops once all are <code>completed</code>, <code>failed</code> or <code>missing</code>.</p>
+<ul>
+  <li>Interval: <code>POLL_MS = 2500</code> at <code>features/library/library-page.ts:15</code>; the <code>setInterval</code> is at <code>library-page.ts:110</code>.</li>
+  <li>Progress bars use <code>progress_done</code> / <code>progress_total</code>, saved after each embedding batch.</li>
+  <li>Chat and the generators do not poll; they wait for the HTTP response.</li>
+</ul>
+<figure>
+<pre class="mermaid">
+stateDiagram-v2
+  direction LR
+  [*] --> pending: upload_document()
+  pending --> processing: ingest_document() claims it
+  processing --> completed: chunks + vectors saved
+  processing --> failed: extraction or embedding error
+  processing --> pending: backend restarted mid-ingest
+  failed --> pending: same PDF uploaded again
+  completed --> missing: file gone at startup
+  missing --> pending: same PDF uploaded again
+  completed --> [*]: delete_document()
+</pre>
+<figcaption>Statuses are defined in <code>DocumentStatus</code> (<code>models/enums.py:4</code>); the restart reset is in <code>pending_document_ids</code> (<code>services/ingestion.py:173</code>), the missing check in <code>mark_missing_files</code> (<code>services/document_service.py:136</code>).</figcaption>
+</figure>
+
+<h2 class="page-break">Setup and running <span class="new">new</span></h2>
+<table>
+  <thead><tr><th>Script</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>setup.bat</code></td><td>Checks uv, Node.js and Docker (offers winget installs), creates <code>Backend\.env</code>, runs <code>uv sync</code>, pulls the database image, runs migrations, installs frontend packages, downloads the embedding model. Safe to run again.</td></tr>
+    <tr><td><code>run-noesis.bat</code></td><td>Starts Docker Desktop if needed, the database container, the backend (migrations, then <code>http://127.0.0.1:8000</code>) and the frontend (<code>http://localhost:4200</code>), then opens the browser.</td></tr>
+  </tbody>
+</table>
+<div class="note">Migrations: <code>0001</code> initial schema, <code>0002</code> quizzes, <code>0003</code> ingestion progress, <code>0004</code> flashcards, <code>0005</code> slide decks, <code>0006</code> slide design.</div>
+
+<h2>File index</h2>
+<table>
+  <thead><tr><th>Area</th><th>Path</th></tr></thead>
+  <tbody>
+    <tr><td>Backend entry, startup</td><td><code>Backend/src/backend/main.py</code>, <code>__init__.py</code> (<code>uv run backend</code>)</td></tr>
+    <tr><td>Settings, logging</td><td><code>Backend/src/backend/core/</code></td></tr>
+    <tr><td>Database session, base classes</td><td><code>Backend/src/backend/database/</code></td></tr>
+    <tr><td>Tables</td><td><code>Backend/src/backend/models/</code></td></tr>
+    <tr><td>Request/response shapes</td><td><code>Backend/src/backend/schemas/</code></td></tr>
+    <tr><td>HTTP endpoints</td><td><code>Backend/src/backend/api/routes/</code> (documents, conversations, chat, quizzes, flashcards, slides, settings)</td></tr>
+    <tr><td>Local user, storage, ingestor wiring</td><td><code>Backend/src/backend/api/dependencies.py</code></td></tr>
+    <tr><td>Business logic, PowerPoint export</td><td><code>Backend/src/backend/services/</code></td></tr>
+    <tr><td>Prompts, citation checks, providers, CPU tuning</td><td><code>Backend/src/backend/rag/</code></td></tr>
+    <tr><td>Migrations</td><td><code>Backend/alembic/versions/</code> (0001 to 0006)</td></tr>
+    <tr><td>Tests</td><td><code>Backend/tests/unit/</code>, <code>Backend/tests/integration/</code>, fakes in <code>Backend/tests/fakes.py</code></td></tr>
+    <tr><td>Postgres container</td><td><code>Backend/docker-compose.yml</code>, <code>Backend/docker/initdb/</code></td></tr>
+    <tr><td>Frontend bootstrap, routes</td><td><code>Frontend/Noesis/src/app/app.ts</code>, <code>app.config.ts</code>, <code>app.routes.ts</code></td></tr>
+    <tr><td>API client, auth, errors</td><td><code>Frontend/Noesis/src/app/core/</code></td></tr>
+    <tr><td>Pages</td><td><code>Frontend/Noesis/src/app/features/</code> (library, workspace, reader, quiz, flashcards, slides)</td></tr>
+    <tr><td>Shared UI, PDF viewer, helpers</td><td><code>Frontend/Noesis/src/app/shared/</code></td></tr>
+    <tr><td>Design tokens and styles</td><td><code>Frontend/Noesis/src/styles/</code></td></tr>
+    <tr><td>Dev proxy to backend</td><td><code>Frontend/Noesis/proxy.conf.json</code></td></tr>
+    <tr><td>Scripts and this document</td><td><code>setup.bat</code>, <code>run-noesis.bat</code>, <code>docs/architecture.html</code> (source of the PDF)</td></tr>
+  </tbody>
+</table>
+
+</main>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    securityLevel: 'strict',
+    fontFamily: 'Instrument Sans, system-ui, sans-serif',
+    themeVariables: {
+      fontSize: '13px',
+      primaryColor: '#fbf8f1', primaryBorderColor: '#7a7264', primaryTextColor: '#1e1a15',
+      secondaryColor: '#f3eee3', tertiaryColor: '#ffffff',
+      lineColor: '#7a7264', textColor: '#1e1a15',
+      clusterBkg: '#ffffff', clusterBorder: '#ddd3c1',
+      actorBkg: '#fbf8f1', actorBorder: '#7a7264', signalColor: '#4b443a', signalTextColor: '#1e1a15',
+      noteBkgColor: '#f3e3dd', noteBorderColor: '#962f22', labelBoxBkgColor: '#f3eee3',
+    },
+    flowchart: { htmlLabels: true, curve: 'basis' },
+    sequence: { mirrorActors: false, actorMargin: 40, messageFontSize: 12 },
+  });
+  // Long paths in table cells may only wrap after / . _ - so they never split mid-word.
+  const esc = (s) => s.replace(/[&<>]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[m]);
+  document.querySelectorAll('td code').forEach((c) => {
+    if (c.closest('td:first-child')) return;
+    c.innerHTML = esc(c.textContent).replace(/([/._-])/g, '$1<wbr>');
+  });
+  // Render one diagram at a time: rendering them together overlaps them in print.
+  (async () => {
+    await document.fonts.ready;
+    const blocks = [...document.querySelectorAll('pre.mermaid')];
+    for (let i = 0; i < blocks.length; i++) {
+      const { svg } = await mermaid.render(`diagram-${i}`, blocks[i].textContent);
+      blocks[i].innerHTML = svg;
+      blocks[i].dataset.processed = 'true';
+    }
+    document.body.dataset.ready = 'true';
+  })();
+</script>
+</body>
+</html>
